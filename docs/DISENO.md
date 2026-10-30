@@ -70,14 +70,17 @@ Cada capa guarda sus propios parámetros de timbre y envolvente.
 
 ## Sonido
 
-- Un sample `.wav` por capa en `assets/samples/`. Los pone Maxi (grabaciones propias de guitarras, mandolinas, golpes de madera, etc.).
+- Un sample `.wav` por capa en `assets/samples/`, con nombres fijos `layer_1.wav` … `layer_4.wav`.
+  Los pone Maxi (grabaciones propias de guitarras, mandolinas, golpes de madera, etc.).
   Preferir sonidos con carácter y envolventes lentas. La nota raíz del sample (MIDI) se declara en `config.gd`.
+  Si falta un archivo, `push_error` con su nombre y esa capa queda muda sin cerrar la aplicación.
 - La altura se logra con `pitch_scale` = 2^(semitonos/12). Sirve para un rango de unas 2 octavas.
 - Cada capa tiene su propio bus de audio con un filtro pasa-bajos y un reverb. B3 modifica esos efectos.
+  Los buses se crean por código al arrancar (ver `AGENTS.md`), no hay `default_bus_layout.tres`.
 - La envolvente (ataque/decay) se hace con volumen en cada voz (por ejemplo con un `Tween`), sobre un pool de reproductores.
 - Un bus de grabación (`AudioEffectRecord`) captura la salida para guardar el WAV.
-- Hasta que Maxi entregue samples, usar un WAV placeholder simple (un seno con decay) generado una vez con un script
-  documentado en `tools/`. Es temporal.
+- Hasta que Maxi entregue samples, usar un WAV placeholder simple (un seno con decay) generado una vez con
+  `tools/make_placeholder_wav.gd`. Es temporal.
 
 ## Visual
 
