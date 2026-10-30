@@ -31,6 +31,20 @@ correctas: coloca puntos en una grilla bloqueada a una escala.
 Diseño completo y decisiones: `docs/DISENO.md`. Plan por sesiones: `docs/SESIONES.md`.
 Estado actual y pendientes: `docs/ESTADO.md`.
 
+## Arquitectura mínima
+
+`main.tscn` tiene un único nodo raíz (Node2D) con `main.gd`. `main.gd` es el dueño del cableado:
+crea el `State`, crea los módulos y conecta las señales. Ningún módulo busca a otro por su cuenta.
+
+- `state.gd`: `class_name State extends RefCounted`. Datos puros, sin nodos, sin lógica.
+- `config.gd`: `class_name Config`. Solo constantes, se usa como `Config.STEPS`. Sin preload y sin autoload.
+- `sequencer.gd`: nodo hijo. Lee el reloj real y emite `step_entered(layer: int, step: int)`.
+- `voice_pool.gd`: nodo hijo. Escucha `step_entered` y dispara samples leyendo el `State`.
+- `view.gd`: nodo Node2D hijo. Solo dibuja: lee el `State` y `sequencer.get_phase(layer)`.
+- `controller.gd`: nodo hijo. Lee acciones del InputMap y modifica el `State`.
+
+Sin autoloads.
+
 ## Hardware y entorno
 
 - Joystick tipo Sanwa JLF (DIGITAL: 8 direcciones, sin valores intermedios) + 4 botones, por un encoder USB plug-and-play.
@@ -39,8 +53,10 @@ Estado actual y pendientes: `docs/ESTADO.md`.
 - Hay un puerto USB libre para sumar un control extra más adelante (sensor por MIDI USB). No es parte de la primera versión.
 - Pantalla y un parlante propio. Audio externo posible.
 - Destino: Fedora Linux, mini PC de especificaciones por confirmar. Exportar para Linux x86_64.
-- Motor: Godot 4.x (versión exacta en `docs/ESTADO.md`). Renderer: Compatibility (OpenGL), salvo que se pruebe que otro anda bien.
+- Motor: Godot 4.7.2 stable oficial. Renderer: Compatibility (OpenGL), salvo que se pruebe que otro anda bien.
 - Todo el proyecto es solo Godot + GDScript. Sin Wwise, sin Python en runtime, sin addons.
+- Los samples van en `assets/samples/layer_1.wav` … `layer_4.wav`, uno por capa, y los pone Maxi.
+  Si falta uno: `push_error` con el nombre del archivo y esa capa queda muda, sin cerrar la aplicación.
 
 ## Controles de desarrollo (teclado)
 
@@ -58,12 +74,13 @@ Para probar en la computadora sin el arcade. Todo pasa por las acciones del Inpu
 Las mismas acciones también responden a gamepad y a las teclas típicas de arcade (flechas, Ctrl, Alt, Espacio, Shift),
 por si el encoder del arcumai aparece como teclado.
 
-Combos con teclado: guardar = K + L mantenidas 2 s; salir de la aplicación = H J K L mantenidas 5 s.
-Si un combo no responde, puede ser una limitación del teclado (ghosting) y no un bug.
+Combos con teclado, a partir de S5: guardar = K + L mantenidas 2 s; salir de la aplicación = H J K L mantenidas 5 s.
+Si un combo no responde, verificá en código que las 4 acciones se registran a la vez antes de culpar al teclado.
 
 ## Comandos
 
 El binario puede llamarse `godot`, `godot4` o ser una ruta completa (anotarlo en `docs/ESTADO.md`).
+En Windows usá el binario `_console.exe` para ver la salida en la terminal: el otro no imprime nada.
 Ejecutar desde la raíz del proyecto.
 
 | Para | Comando |
@@ -76,7 +93,21 @@ Ejecutar desde la raíz del proyecto.
 | Ver qué eventos manda el joystick (en Fedora) | `evtest` o `jstest /dev/input/js0` |
 | Instalar esas herramientas (en Fedora) | `sudo dnf install evtest joystick` |
 
+`godot --headless --path . --quit` es sobre todo un chequeo de parseo e import: no valida lo visual ni el audio.
+Eso lo prueba Maxi.
+
 El export necesita un preset llamado exactamente `Linux` y las plantillas de exportación instaladas (se crea en S0).
+
+## Escenas y configuración por código
+
+- `main.tscn` es mínimo: un nodo raíz con `main.gd` y nada más. Todo el resto se crea por código en `_ready()`.
+  No editar `.tscn` a mano: un `.tscn` escrito a mano es el error más difícil de depurar del proyecto.
+- Los buses de audio se crean por código con `AudioServer` (no hay `default_bus_layout.tres`).
+  `voice_pool` pide los buses por nombre, nunca por índice.
+- Las acciones del InputMap se registran por código al arrancar (`InputMap.add_action` + `InputMap.action_add_event`),
+  no se escriben a mano en `project.godot`. Las acciones salen de una única lista de constantes en `config.gd`,
+  y esa misma lista alimenta la pantalla de debug de S0.
+- `project.godot` se toca a mano lo mínimo (nombre, ventana, renderer); el resto, por código o desde el editor.
 
 ## Cómo trabajar
 
@@ -93,6 +124,10 @@ El export necesita un preset llamado exactamente `Linux` y las plantillas de exp
 - No refactorices código que funciona salvo que bloquee la tarea.
 - No agregues dependencias, addons ni archivos fuera de la estructura de abajo sin preguntar.
 - Un commit de git por paso, con mensaje claro. Ejemplo: `S2: línea de barrido dispara notas`.
+- El código de diagnóstico temporal se borra antes del commit. Los `print` permanentes son solo los de la lista de eventos clave.
+- No optimices la vista antes de medir: los FPS se miden en el arcade (S0b).
+- `DISENO.md` y `SESIONES.md` no se editan en sesión. Un hallazgo de diseño va a la sección
+  **Propuestas de diseño** de `docs/ESTADO.md`, con qué se propone y por qué. Maxi decide.
 
 ### Reportes breves, orientados a depurar
 Sin explicaciones didácticas ni tutoriales. Después de cada cambio importante, reportá en 2 a 4 líneas:
@@ -124,22 +159,27 @@ Tiene que alcanzar para ubicar rápido dónde mirar si algo falla.
 - Logs con prefijo del script, por ejemplo `print("[sequencer] capa 2 paso 5")`, solo en eventos clave
   (cambio de capa, nota asentada o borrada, cambio de modo, guardado). Nunca en `_process` en cada frame.
 
-## Estructura del proyecto (máximo; no crecer sin preguntar)
+## Estructura del proyecto (máximo de scripts y escenas; no crecer sin preguntar)
 
 ```
-project.godot
 AGENTS.md
-docs/              DISENO.md, SESIONES.md, ESTADO.md
-assets/samples/    un .wav por capa (los pone Maxi)
-scenes/main.tscn   una sola escena
+project.godot
+export_presets.cfg
+.gitignore                      ignora build/ y .godot/
+docs/                           DISENO.md, SESIONES.md, ESTADO.md
+assets/samples/                 layer_1.wav … layer_4.wav (los pone Maxi)
+scenes/main.tscn                un nodo raíz con main.gd, nada más
 scripts/
-  config.gd        constantes: pasos, filas, escala, períodos, timeouts
-  state.gd         datos puros: capas, notas, cursor
-  controller.gd    lee acciones de input, modifica state
-  sequencer.gd     calcula la posición de cada barrido, emite señales
-  voice_pool.gd    reproduce sonidos (pitch, envolvente)
-  view.gd          dibuja todo con _draw()
-  saver.gd         guarda JSON + WAV (sesión posterior)
+  main.gd         dueño del estado y del cableado
+  config.gd       constantes: pasos, filas, escala, períodos, timeouts
+  state.gd        datos puros: capas, notas, cursor
+  controller.gd   lee acciones de input, modifica state
+  sequencer.gd    calcula la posición de cada barrido, emite señales
+  voice_pool.gd   reproduce sonidos (pitch, envolvente)
+  view.gd         dibuja todo con _draw()
+  saver.gd        guarda JSON + WAV (sesión posterior)
+tools/
+  make_placeholder_wav.gd       temporal: WAV de prueba hasta que Maxi entregue samples
 ```
 
 ## Qué NO hacer (en ningún momento, salvo pedido explícito)

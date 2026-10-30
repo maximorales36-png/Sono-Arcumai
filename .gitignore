@@ -1,0 +1,5 @@
+# Caché de Godot
+.godot/
+
+# Builds exportados
+build/
