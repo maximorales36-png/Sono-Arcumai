@@ -41,7 +41,7 @@ antes de seguir (ver S2). Si algo no suena bien, se corrige ahí. Ningún contro
 
 **Alcance**
 - Proyecto Godot 4.x (Compatibility), `git init`, estructura de carpetas de `AGENTS.md`.
-- InputMap con acciones: `move_left`, `move_right`, `move_up`, `move_down`, `btn1`, `btn2`, `btn3`, `btn4`.
+- InputMap con acciones registradas por código al arrancar (ver `AGENTS.md`): `move_left`, `move_right`, `move_up`, `move_down`, `btn1`, `btn2`, `btn3`, `btn4`.
   Cada acción mapeada a tres cosas:
   - Teclado de desarrollo: W A S D para el joystick y H J K L para los botones 1 a 4.
   - Teclado estilo arcade/MAME (flechas + Ctrl, Alt, Espacio, Shift), por si el encoder del arcumai aparece como teclado.
@@ -150,10 +150,11 @@ Si no suena bien o no se entiende, corregir ACÁ (sample, escala, rango, velocid
 **Objetivo**: que sea utilizable de forma desatendida.
 
 **Alcance**
-- Combo B3 + B4 mantenido 2 s: guardar JSON del estado y WAV de la sesión en una carpeta configurable
+- Grabación de audio en curso desde el inicio de la pieza, con tope de 8 min (ver `DISENO.md`).
+- Combo B3 + B4 mantenido 2 s: guardar JSON del estado y WAV de la pieza en una carpeta configurable
   (por defecto una carpeta de usuario del arcumai). Mostrar un nombre corto en pantalla.
 - Combo de los 4 botones mantenido 5 s: cerrar la aplicación.
-- Reinicio a pieza vacía tras 120 s de inactividad (confirmar con Maxi antes).
+- Reinicio a pieza vacía tras 300 s de inactividad, que también reinicia la grabación (decisión de Maxi, ver `DISENO.md`).
 - Arranque automático en Fedora al encender y reinicio si se cuelga (pedir a Maxi cómo se lanza hoy el arcade antes de decidir el método).
 
 **Listo cuando**

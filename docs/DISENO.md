@@ -55,12 +55,18 @@ Cada capa guarda sus propios parámetros de timbre y envolvente.
 
 ## Guardar y salir
 
-- **Guardar**: mantener B3 + B4 durante 2 segundos. Escribe un JSON con el estado y un WAV con el audio de la sesión.
-  Muestra en pantalla un nombre corto de la pieza (palabra + número, ejemplo: `mar-lento-17`).
+- **Grabación**: la captura de audio arranca al iniciar y en cada reinicio por inactividad, y se descarta al reiniciar.
+  Tope de 8 minutos por pieza (unos 85 MB en RAM: estéreo 44.1 kHz 16 bits). Al llegar al tope se corta la grabación
+  con un `push_error` y la pieza sigue sonando. El tope existe porque sin reinicio ni límite la grabación crecería sin fin.
+- **Guardar**: mantener B3 + B4 durante 2 segundos. Escribe un JSON con el estado y un WAV con el audio grabado
+  de la pieza. Muestra en pantalla un nombre corto de la pieza (palabra + número, ejemplo: `mar-lento-17`).
 - **Salir (administrador)**: mantener los cuatro botones durante 5 segundos. Cierra la aplicación.
+  Es la única salida del build del arcade: quien lo administra tiene que conocer el combo. Si la aplicación se cuelga,
+  el recurso es el sistema operativo.
 - Si la persona se va sin guardar, la pieza se pierde. Es una decisión consciente.
-- **Reinicio por inactividad**: tras 120 segundos sin ninguna entrada, volver a una pieza vacía sin guardar,
-  para que la próxima persona empiece de cero. (Propuesta, confirmar con Maxi antes de implementar.)
+- **Reinicio por inactividad**: tras 300 segundos (5 minutos, constante en `config.gd`) sin ninguna entrada,
+  volver a una pieza vacía sin guardar y reiniciar la grabación, para que la próxima persona empiece de cero.
+  El umbral es el máximo de la sesión típica (2 a 5 minutos), así nadie pierde trabajo mientras piensa.
 
 ## Sonido
 
@@ -100,6 +106,10 @@ Cada capa guarda sus propios parámetros de timbre y envolvente.
 | Arrancar de cero | Decisión de Maxi: lo único que suena al inicio es la nota fantasma |
 | No guardar automáticamente | Decisión de Maxi: si se van sin guardar, la pieza se pierde |
 | Solo Godot | Evitar dependencias en una máquina de uso público; la lógica elegida no necesita sincronía a la muestra |
+| Grabación desde el inicio de la pieza, con tope de 8 min | Sin tope crece sin límite en RAM; 85 MB es un pico acotado y medible |
+| Reinicio por inactividad a los 5 min | Coincide con el máximo de la sesión típica: nadie pierde la pieza mientras piensa |
+| Salida solo por el combo de 4 botones | Si la aplicación se cuelga queda el sistema operativo; el combo lo conoce quien administra el arcade |
+| Escenas, buses e InputMap creados por código | Un `.tscn` escrito a mano es el error más difícil de depurar; el InputMap serializado en `project.godot` es un formato frágil |
 
 ## Riesgos conocidos
 
@@ -107,4 +117,6 @@ Cada capa guarda sus propios parámetros de timbre y envolvente.
   Es aceptable con sonidos de ataque lento. Con ataques percusivos puede notarse. Medirlo pronto.
 - **Rango de pitch**: estirar un solo sample más de ±1 octava cambia mucho su carácter. Si suena mal, usar dos samples por capa.
 - **Rendimiento**: especificaciones de la mini PC desconocidas. Probar en el arcade real lo antes posible.
+- **RAM de la grabación**: 8 minutos son unos 85 MB, y al guardar se duplica transitoriamente al codificar el WAV.
+  Medir el pico en el arcade (S0b).
 - **Input**: el encoder puede aparecer como gamepad o teclado. Verificar con `evtest` o `jstest` en Fedora.
