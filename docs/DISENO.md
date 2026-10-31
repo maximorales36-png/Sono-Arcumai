@@ -70,11 +70,14 @@ Cada capa guarda sus propios parámetros de timbre y envolvente.
 
 ## Sonido
 
-- Un sample `.wav` por capa en `assets/samples/`, con nombres fijos `layer_1.wav` … `layer_4.wav`.
-  Los pone Maxi (grabaciones propias de guitarras, mandolinas, golpes de madera, etc.).
-  Preferir sonidos con carácter y envolventes lentas. La nota raíz del sample (MIDI) se declara en `config.gd`.
-  Si falta un archivo, `push_error` con su nombre y esa capa queda muda sin cerrar la aplicación.
-- La altura se logra con `pitch_scale` = 2^(semitonos/12). Sirve para un rango de unas 2 octavas.
+- Dos samples `.wav` por capa en `assets/samples/`, con nombres fijos `layer_1_low.wav` / `layer_1_high.wav`
+  … `layer_4_low.wav` / `layer_4_high.wav`. Los pone Maxi (grabaciones propias de guitarras, mandolinas,
+  golpes de madera, etc.). Preferir sonidos con carácter y envolventes lentas.
+- La grilla se parte en dos zonas en la fila `ZONE_SPLIT_ROW` (5): filas 5–9 usan el sample grave y filas 0–4
+  el agudo. Cada zona cubre 5 filas y se transpone como máximo 10 semitonos, en vez de 22.
+- La nota raíz MIDI de cada sample se declara en `config.gd` (`LAYER_SAMPLE_ROOT_MIDI`).
+  Si falta un archivo, `push_error` con su nombre y esa zona queda muda sin cerrar la aplicación.
+- La altura se logra con `pitch_scale` = 2^(semitonos/12) relativo a la raíz del sample de la zona.
 - Cada capa tiene su propio bus de audio con un filtro pasa-bajos y un reverb. B3 modifica esos efectos.
   Los buses se crean por código al arrancar (ver `AGENTS.md`), no hay `default_bus_layout.tres`.
 - La envolvente (ataque/decay) se hace con volumen en cada voz (por ejemplo con un `Tween`), sobre un pool de reproductores.
@@ -118,7 +121,8 @@ Cada capa guarda sus propios parámetros de timbre y envolvente.
 
 - **Jitter de tiempo**: calcular pasos desde el reloj real en `_process` implica un error máximo de ~1 frame (16 ms a 60 fps).
   Es aceptable con sonidos de ataque lento. Con ataques percusivos puede notarse. Medirlo pronto.
-- **Rango de pitch**: estirar un solo sample más de ±1 octava cambia mucho su carácter. Si suena mal, usar dos samples por capa.
+- **Rango de pitch**: resuelto con dos samples por capa (grave/agudo, split en la fila 5): cada zona se estira
+  como máximo 10 semitonos. Falta escucharlo con los samples reales.
 - **Rendimiento**: especificaciones de la mini PC desconocidas. Probar en el arcade real lo antes posible.
 - **RAM de la grabación**: 8 minutos son unos 85 MB, y al guardar se duplica transitoriamente al codificar el WAV.
   Medir el pico en el arcade (S0b).

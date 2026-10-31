@@ -55,7 +55,8 @@ Sin autoloads.
 - Destino: Fedora Linux, mini PC de especificaciones por confirmar. Exportar para Linux x86_64.
 - Motor: Godot 4.7.2 stable oficial. Renderer: Compatibility (OpenGL), salvo que se pruebe que otro anda bien.
 - Todo el proyecto es solo Godot + GDScript. Sin Wwise, sin Python en runtime, sin addons.
-- Los samples van en `assets/samples/layer_1.wav` … `layer_4.wav`, uno por capa, y los pone Maxi.
+- Los samples van en `assets/samples/`, dos por capa: `layer_N_low.wav` y `layer_N_high.wav` (N = 1 … 4).
+  Los pone Maxi. El grave cubre las filas de abajo y el agudo las de arriba (corte en `ZONE_SPLIT_ROW`).
   Si falta uno: `push_error` con el nombre del archivo y esa capa queda muda, sin cerrar la aplicación.
 
 ## Controles de desarrollo (teclado)
@@ -175,7 +176,7 @@ project.godot
 export_presets.cfg
 .gitignore                      ignora build/ y .godot/
 docs/                           DISENO.md, SESIONES.md, ESTADO.md
-assets/samples/                 layer_1.wav … layer_4.wav (los pone Maxi)
+assets/samples/                 layer_N_low.wav / layer_N_high.wav (los pone Maxi)
 scenes/main.tscn                un nodo raíz con main.gd, nada más
 scripts/
   main.gd         dueño del estado y del cableado

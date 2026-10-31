@@ -5,9 +5,9 @@ Mantenerlo corto: reemplazar lo viejo, no acumular.
 
 ## Dónde estamos
 
-- S0, S1 y S2 completos en la máquina de desarrollo, con sample placeholder.
-- S2 suena: grilla, notas, nota fantasma y línea de barrido.
-- Bloqueado antes de S3: S0b en el arcade y la prueba con una persona (obligatoria en S2).
+- S0, S1 y S2 completos en la máquina de desarrollo, con samples placeholder (dos por capa).
+- S2 suena: grilla, notas, nota fantasma y línea de barrido. La prueba con una persona dio bien.
+- Bloqueado antes de S3: S0b en el arcade y la entrega de los samples reales.
 
 ## Datos a confirmar (Maxi)
 
@@ -21,7 +21,7 @@ Mantenerlo corto: reemplazar lo viejo, no acumular.
 | Salida de audio (parlante interno, jack, HDMI, parlante externo) | por confirmar |
 | Cómo se lanza hoy el arcade (frontend, launcher, escritorio) | por confirmar |
 | Quién administra el arcade y conoce el combo de salida (4 botones, 5 s) | por confirmar |
-| Samples de las capas (`layer_1.wav` … `layer_4.wav` y nota raíz MIDI de cada uno) | por entregar, antes de S3 |
+| Samples de las capas (`layer_N_low.wav` / `layer_N_high.wav`, N = 1…4, y nota raíz MIDI de cada uno) | por entregar, antes de S3 |
 | Carpeta donde se guardan las piezas | por decidir (S5) |
 | ¿La mini PC tiene internet? | por confirmar |
 
@@ -35,16 +35,19 @@ Mantenerlo corto: reemplazar lo viejo, no acumular.
 - `scripts/main.gd`: registra el InputMap en `_enter_tree`, crea `State`, `Sequencer`, `VoicePool`, `Controller`
   y `View`, conecta `step_entered`, oculta el mouse, Esc cierra solo en builds de debug.
 - `scripts/config.gd`: acciones y mapeos, grilla (16x10, 1 capa), tiempos del cursor, colores, períodos por capa,
-  escala pentatónica menor de 10 grados, nota raíz y volumen.
+  escala pentatónica menor de 10 grados, dos samples por capa (grave/agudo) con su nota raíz, corte de zona y volumen.
 - `scripts/state.gd`: `State` y `State.Layer` (notas como conjunto de celdas `Vector2i`), cursor, `toggle_note`.
 - `scripts/controller.gd`: cursor con repetición propia (250 ms inicial, 80 ms después), `btn1` alterna nota,
   `posmod` en X y `clampi` en Y.
 - `scripts/sequencer.gd`: fase por capa calculada desde el origen; `step_entered(layer, step)` al cambiar de paso.
-- `scripts/voice_pool.gd`: 16 voces en round-robin a -6 dB, `pitch_scale` = 2^(semitonos/12), nota fantasma del
-  cursor, capa muda con `push_error` si falta el sample.
+- `scripts/voice_pool.gd`: dos zonas (fila 5 y abajo = sample grave, arriba = agudo), 8 voces por zona en round-robin
+  a -6 dB, `pitch_scale` = 2^(semitonos/12) contra la raíz del sample de la zona, nota fantasma del cursor,
+  zona muda con `push_error` si falta el sample.
 - `scripts/view.gd`: grilla, notas, línea de barrido por capa y cursor con contorno parpadeante (600 ms).
-- `tools/make_placeholder_wav.gd` y `assets/samples/layer_1.wav`: seno de 220 Hz con decay, 2 s, mono, 44.1 kHz.
-- Verificado por mí: `--headless --quit` sin errores de script; alturas (fila de abajo 1.000, de arriba 3.564);
+- `tools/make_placeholder_wav.gd` y `assets/samples/layer_1_low.wav` / `layer_1_high.wav`:
+  senos de 220 Hz (MIDI 57) y 440 Hz (MIDI 69) con decay, 2 s, mono, 44.1 kHz.
+- Verificado por mí: `--headless --quit` sin errores de script; alturas por zona (fila 9 y fila 5: 1.000 y 1.782
+  sobre el grave; fila 4 y fila 0: 1.000 y 1.782 sobre el agudo); cada zona carga y usa su propio sample;
   disparos correctos (nota en el paso, fantasma en el cursor, nada en paso vacío, nada en capa inactiva);
   captura de pantalla con notas y línea de barrido.
 
@@ -65,9 +68,11 @@ En el arcade, a 60 fps, el peor caso esperado por frame es de ~17 ms.
 - S1: `Controller.move_cursor` es público para poder probar la vuelta y el tope sin simular input.
 - S2: la fase se recalcula desde `Time.get_ticks_usec()` en cada frame; no se acumula `delta`.
 - S2: las notas se disparan al entrar al paso (señal), no con temporizadores por nota.
-- S2: pool fijo de 16 voces en round-robin, sin buscar voz libre: más simple y acota la polifonía.
+- S2: 16 voces repartidas en dos zonas de 8 (grave/agudo), en round-robin por zona. Así cada disparo no reutiliza
+  una voz de la otra zona, y el tope de polifonía sigue acotado.
 - S2: la nota fantasma usa la misma voz y el mismo volumen que una nota asentada.
-- S2: fila de abajo = MIDI 57 (nota raíz del placeholder); la de arriba queda 22 semitonos más aguda.
+- S2: dos samples por capa (decisión de Maxi): filas 5–9 con el grave, 0–4 con el agudo. Cada zona se estira
+  como máximo 10 semitonos en vez de 22. La raíz MIDI de cada sample se declara en `LAYER_SAMPLE_ROOT_MIDI`.
 
 ## Propuestas de diseño
 
@@ -82,9 +87,8 @@ Formato: qué se propone, por qué, y qué evidencia lo sostiene (por ejemplo, l
 - Confirmar en el arcade si el encoder aparece como gamepad o como teclado.
 - Probar en el arcade la sensación del cursor: 250 ms de retardo y 80 ms por paso pueden quedar lentos o rápidos.
 - Dejar la app 10 minutos corrida en el arcade (acá se midieron 90 s) y escuchar si aparece algún corte.
-- Con los samples reales, escuchar el rango completo: 22 semitonos es más de una octava. Si la fila de arriba
-  suena mal, bajar el rango o usar dos samples por capa.
-- **Prueba con una persona (obligatoria antes de S3)**: 3 minutos sin explicar nada, anotar el resultado acá abajo.
+- Con los samples reales, escuchar la unión de las dos zonas: en la fila 5 (grave, 10 semitonos arriba) y en la
+  fila 4 (agudo, sin transponer) el timbre tiene que emparejar. Si no, mover `ZONE_SPLIT_ROW` o ajustar raíces.
 - Medir FPS en el arcade (S0b). Optimizar la vista solo si hay problema.
 - Medir el pico de RAM al guardar una grabación de 8 minutos (S5).
 
@@ -94,4 +98,5 @@ Formato: qué se propone, por qué, y qué evidencia lo sostiene (por ejemplo, l
 
 ## Resultado de la prueba con persona (S2)
 
-(vacío)
+Aprobada. Lo probó una persona unos minutos: "suena bien y la lógica es entretenida". No hizo falta explicarle nada.
+S3 desbloqueado.
