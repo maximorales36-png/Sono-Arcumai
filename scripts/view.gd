@@ -1,13 +1,15 @@
-# Dibuja la grilla, las notas de la capa activa y el cursor parpadeante.
-# Solo lee el estado: no lo modifica. Depende de config.gd y de state.gd.
+# Dibuja la grilla, las notas de la capa activa, las líneas de barrido y el cursor parpadeante.
+# Solo lee el estado: no lo modifica. Depende de config.gd, state.gd y sequencer.gd.
 class_name View
 extends Node2D
 
 var state: State
+var sequencer: Sequencer
 
 
 func _ready() -> void:
 	assert(state != null, "[view] falta el State: main.gd tiene que asignarlo antes de agregar el nodo")
+	assert(sequencer != null, "[view] falta el Sequencer: main.gd tiene que asignarlo antes de agregar el nodo")
 
 
 func _process(_delta: float) -> void:
@@ -21,6 +23,7 @@ func _draw() -> void:
 		grid_rect.size.y / float(Config.ROWS)
 	)
 	_draw_grid_lines(grid_rect, cell_size)
+	_draw_sweep_lines(grid_rect)
 	_draw_notes(grid_rect, cell_size)
 	_draw_cursor(grid_rect, cell_size)
 
@@ -51,6 +54,20 @@ func _draw_grid_lines(grid_rect: Rect2, cell_size: Vector2) -> void:
 			Vector2(grid_rect.end.x, y),
 			Config.GRID_LINE_COLOR,
 			Config.GRID_LINE_WIDTH
+		)
+
+
+func _draw_sweep_lines(grid_rect: Rect2) -> void:
+	for layer: int in Config.LAYER_COUNT:
+		var phase := sequencer.get_phase(layer)
+		var x := grid_rect.position.x + phase / float(Config.STEPS) * grid_rect.size.x
+		var line_color: Color = Config.LAYER_COLORS[layer]
+		line_color.a = 0.85
+		draw_line(
+			Vector2(x, grid_rect.position.y),
+			Vector2(x, grid_rect.end.y),
+			line_color,
+			Config.SWEEP_LINE_WIDTH
 		)
 
 

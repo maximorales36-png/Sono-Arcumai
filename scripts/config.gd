@@ -86,3 +86,26 @@ const LAYER_COLORS: Array[Color] = [
 	Color(0.75, 0.95, 0.55),
 	Color(0.85, 0.65, 0.95),
 ]
+
+# --- Sonido (S2) ---
+
+# Períodos de ciclo por capa, en segundos. Que no sean múltiplos entre sí.
+const LAYER_PERIOD_SECONDS: Array[float] = [7.0, 9.5, 11.3, 13.7]
+
+const LAYER_SAMPLE_PATHS: Array[String] = [
+	"res://assets/samples/layer_1.wav",
+	"res://assets/samples/layer_2.wav",
+	"res://assets/samples/layer_3.wav",
+	"res://assets/samples/layer_4.wav",
+]
+
+# Pentatónica menor, dos octavas: una entrada por fila, de grave a agudo.
+const SCALE_SEMITONES: Array[int] = [0, 3, 5, 7, 10, 12, 15, 17, 19, 22]
+
+# Nota MIDI que suena en la fila de abajo, y nota raíz del sample que suena sin transponer.
+const GRID_BOTTOM_MIDI := 57
+const SAMPLE_ROOT_MIDI := 57
+
+const VOICE_COUNT := 16
+const NOTE_VOLUME_DB := -6.0
+const SWEEP_LINE_WIDTH := 2.0

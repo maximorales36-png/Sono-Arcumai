@@ -3,6 +3,8 @@
 extends Node2D
 
 var _state: State
+var _sequencer: Sequencer
+var _voice_pool: VoicePool
 var _controller: Controller
 var _view: View
 
@@ -18,12 +20,21 @@ func _ready() -> void:
 
 	_state = State.new()
 
+	_sequencer = Sequencer.new()
+	add_child(_sequencer)
+
+	_voice_pool = VoicePool.new()
+	_voice_pool.state = _state
+	add_child(_voice_pool)
+	_sequencer.step_entered.connect(_voice_pool.play_step)
+
 	_controller = Controller.new()
 	_controller.state = _state
 	add_child(_controller)
 
 	_view = View.new()
 	_view.state = _state
+	_view.sequencer = _sequencer
 	add_child(_view)
 
 
