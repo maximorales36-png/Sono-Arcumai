@@ -46,7 +46,7 @@ Una sola regla: **mantener un botón cambia lo que mueve el joystick**.
 |---|---|
 | Joystick (solo) | Mueve el cursor en tiempo (X) y altura (Y) |
 | B1 (toque) | Alterna: si no hay nota en la celda del cursor, la asienta; si hay, la borra |
-| B2 (toque) | Pasa a la capa siguiente (siguiente sonido). El cursor adopta el sonido de esa capa |
+| B2 (toque) | Pasa a la capa siguiente (siguiente sonido). El cursor adopta el sonido de esa capa. Después de la última capa muestra la vista de todas las capas juntas; el siguiente toque vuelve a la primera |
 | B3 (mantenido) | El joystick mueve el plano tímbrico de la capa activa: X = brillo (filtro pasa-bajos), Y = cantidad de reverb |
 | B4 (mantenido) | El joystick mueve el plano de envolvente de la capa activa: X = ataque, Y = decay |
 
@@ -89,6 +89,9 @@ Cada capa guarda sus propios parámetros de timbre y envolvente.
 
 - Todo con `_draw()`. Fondo oscuro, grilla sobria, cada capa de un color, líneas de barrido finas, notas como cuadrados,
   cursor como contorno parpadeante del color de la capa activa.
+- **Vista de todas las capas**: después de la última capa, B2 muestra las notas de las cuatro capas superpuestas,
+  cada una en su color. Es solo para mirar: no hay cursor, no suena la nota fantasma, B1 y el joystick no hacen nada,
+  y las cuatro líneas de barrido valen lo mismo. El siguiente B2 vuelve a la capa 1.
 - Nada de texto salvo el nombre de la pieza al guardar y los indicadores de B3/B4 mientras están apretados.
 - Mouse oculto. Pantalla completa.
 

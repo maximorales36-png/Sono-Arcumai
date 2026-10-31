@@ -6,7 +6,8 @@ Mantenerlo corto: reemplazar lo viejo, no acumular.
 ## Dónde estamos
 
 - S0, S1, S2 y S3 completos en la máquina de desarrollo, con samples placeholder (dos por capa, cuatro capas).
-- Suenan las 4 capas a la vez, cada una con su período y su color; `btn2` cambia la capa activa.
+- Suenan las 4 capas a la vez, cada una con su período y su color; `btn2` cambia la capa activa y, después de la
+  cuarta, muestra las cuatro juntas en modo solo mirar.
 - Bloqueado antes de S4: S0b en el arcade y la entrega de los samples reales.
 
 ## Datos a confirmar (Maxi)
@@ -21,7 +22,7 @@ Mantenerlo corto: reemplazar lo viejo, no acumular.
 | Salida de audio (parlante interno, jack, HDMI, parlante externo) | por confirmar |
 | Cómo se lanza hoy el arcade (frontend, launcher, escritorio) | por confirmar |
 | Quién administra el arcade y conoce el combo de salida (4 botones, 5 s) | por confirmar |
-| Samples de las capas (`layer_N_low.wav` / `layer_N_high.wav`, N = 1…4, y nota raíz MIDI de cada uno) | por entregar, antes de S3 |
+| Samples de las capas (`layer_N_low.wav` / `layer_N_high.wav`, N = 1…4, y nota raíz MIDI de cada uno) | por entregar, antes de S4 |
 | Carpeta donde se guardan las piezas | por decidir (S5) |
 | ¿La mini PC tiene internet? | por confirmar |
 
@@ -45,15 +46,17 @@ Mantenerlo corto: reemplazar lo viejo, no acumular.
 - `scripts/voice_pool.gd`: un pool por capa y zona (4 x 2 x 8 voces = 64 reproductores), `pitch_scale` =
   2^(semitonos/12) contra la raíz del sample de la zona, suenan las notas de todas las capas y la nota fantasma
   solo en la capa activa, vista previa al cambiar de capa, zona muda con `push_error` si falta el sample.
-- `scripts/view.gd`: grilla, notas de la capa activa, una línea de barrido por capa (la activa más gruesa y encima)
-  y cursor con contorno parpadeante (600 ms).
+- `scripts/view.gd`: grilla, notas de la capa activa (o de las 4 en la vista de todas), una línea de barrido por capa
+  (la activa más gruesa y encima) y cursor con contorno parpadeante (600 ms) que desaparece en la vista de todas.
 - `tools/make_placeholder_wav.gd` y `assets/samples/layer_N_low.wav` / `layer_N_high.wav` (N = 1…4):
   senos con decay, 2 s, mono, 44.1 kHz, raíz MIDI 57 el grave y 69 el agudo, con armónicos distintos por capa
   para distinguirlas de oído.
 - Verificado por mí: `--headless --quit` sin errores de script; 4 capas con sus 8 samples cargados; alturas por zona
   (fila 9 = 1.000 y fila 0 = 1.782 en las cuatro capas); una nota en el paso 3 suena en las 4 capas; la nota fantasma
-  solo suena en la capa activa; `btn2` recorre 1→2→3→4→1 conservando las notas y hace sonar la vista previa;
-  avance de fase medido en 2 s dentro de 0.01 pasos de lo esperado; captura con las 4 líneas de distinto color.
+  solo suena en la capa activa; `btn2` recorre 1→2→3→4→vista de todas→1 conservando las notas y hace sonar la vista
+  previa en cada capa; en la vista de todas, B1 y el joystick no tocan el estado y el fantasma no suena;
+  avance de fase medido en 2 s dentro de 0.01 pasos de lo esperado; capturas de la vista de todas (4 colores) y de
+  la capa 1 (solo su color).
 
 ### Medición de tiempo (S2)
 
@@ -84,8 +87,11 @@ de lo esperado por período.
 - S3: suenan las notas de todas las capas; la nota fantasma (cursor) solo en la capa activa.
 - S3: `btn2` emite `layer_changed` y main lo conecta a la vista previa del cursor, para que el cambio de timbre
   se escuche en el acto.
-- S3: la línea de la capa activa va más gruesa y se dibuja última (encima). Es la única marca extra en pantalla.
+- S3: la línea de la capa activa va más gruesa y se dibuja última (encima). En la vista de todas valen lo mismo.
 - S3: `TEMPO_SCALE` divide los períodos (más grande = más rápido), fijo en 1.0 por ahora.
+- S3: después de la capa 4, `btn2` muestra la vista de todas las capas (decisión de Maxi). Es solo para mirar:
+  `State.show_all_layers` corta el cursor, el fantasma, B1 y el joystick; solo responde B2, que vuelve a la capa 1
+  y hace sonar la vista previa. `get_active_layer()` tiene un assert para que nadie edite en esa vista.
 
 ## Propuestas de diseño
 
