@@ -1,13 +1,18 @@
-# Reproduce el sample de la capa activa con la altura de cada fila y la nota fantasma del cursor.
-# Escucha step_entered del sequencer y lee el State. Depende de config.gd y de state.gd.
+# Reproduce los samples de la capa activa, uno grave y uno agudo según la fila,
+# y la nota fantasma del cursor. Escucha step_entered y lee el State.
+# Depende de config.gd y de state.gd.
 class_name VoicePool
 extends Node
 
+const ZONE_LOW := 0
+const ZONE_HIGH := 1
+const ZONE_COUNT := 2
+
 var state: State
 
-var _players: Array[AudioStreamPlayer] = []
-var _next_player: int = 0
-var _stream: AudioStream
+var _streams: Array[AudioStream] = []
+var _players: Array[Array] = []
+var _next_player: Array[int] = []
 
 
 func _ready() -> void:
@@ -16,7 +21,11 @@ func _ready() -> void:
 		Config.SCALE_SEMITONES.size() == Config.ROWS,
 		"[voice_pool] SCALE_SEMITONES tiene %d notas y la grilla %d filas" % [Config.SCALE_SEMITONES.size(), Config.ROWS]
 	)
-	_load_sample()
+	for _zone: int in ZONE_COUNT:
+		_streams.append(null)
+		_players.append([])
+		_next_player.append(0)
+	_load_samples()
 	_create_players()
 
 
@@ -33,34 +42,46 @@ func play_step(layer: int, step: int) -> void:
 
 func play_row(row: int) -> void:
 	assert(row >= 0 and row < Config.ROWS, "[voice_pool] fila fuera de rango: %d" % row)
-	if _stream == null:
+	var zone := zone_for_row(row)
+	if _streams[zone] == null:
 		return
-	var player := _players[_next_player]
-	_next_player = (_next_player + 1) % _players.size()
-	player.pitch_scale = _pitch_scale_for_row(row)
+	var players: Array = _players[zone]
+	var player: AudioStreamPlayer = players[_next_player[zone]]
+	_next_player[zone] = (_next_player[zone] + 1) % players.size()
+	player.pitch_scale = pitch_scale_for_row(row)
 	player.play()
 
 
-func _pitch_scale_for_row(row: int) -> float:
-	var scale_index := Config.ROWS - 1 - row
-	var semitones := Config.GRID_BOTTOM_MIDI + Config.SCALE_SEMITONES[scale_index] - Config.SAMPLE_ROOT_MIDI
-	return pow(2.0, float(semitones) / 12.0)
+# Filas de abajo: sample grave. Filas de arriba: sample agudo.
+func zone_for_row(row: int) -> int:
+	return ZONE_LOW if row >= Config.ZONE_SPLIT_ROW else ZONE_HIGH
 
 
-func _load_sample() -> void:
-	var sample_path: String = Config.LAYER_SAMPLE_PATHS[state.active_layer_index]
-	if not ResourceLoader.exists(sample_path):
-		push_error("[voice_pool] falta el sample %s: esa capa queda muda" % sample_path)
-		return
-	_stream = load(sample_path) as AudioStream
-	if _stream == null:
-		push_error("[voice_pool] %s existe pero no se pudo cargar como AudioStream" % sample_path)
+# Transpone dentro de la zona: cada sample cubre como máximo diez semitonos.
+func pitch_scale_for_row(row: int) -> float:
+	var target_midi := Config.GRID_BOTTOM_MIDI + Config.SCALE_SEMITONES[Config.ROWS - 1 - row]
+	var root_midi: int = Config.LAYER_SAMPLE_ROOT_MIDI[state.active_layer_index][zone_for_row(row)]
+	return pow(2.0, float(target_midi - root_midi) / 12.0)
+
+
+func _load_samples() -> void:
+	var layer_paths: Array = Config.LAYER_SAMPLE_PATHS[state.active_layer_index]
+	for zone: int in ZONE_COUNT:
+		var sample_path: String = layer_paths[zone]
+		if not ResourceLoader.exists(sample_path):
+			push_error("[voice_pool] falta el sample %s: esa zona queda muda" % sample_path)
+			continue
+		_streams[zone] = load(sample_path) as AudioStream
+		if _streams[zone] == null:
+			push_error("[voice_pool] %s existe pero no se pudo cargar como AudioStream" % sample_path)
 
 
 func _create_players() -> void:
-	for _voice: int in Config.VOICE_COUNT:
-		var player := AudioStreamPlayer.new()
-		player.stream = _stream
-		player.volume_db = Config.NOTE_VOLUME_DB
-		add_child(player)
-		_players.append(player)
+	var voices_per_zone := Config.VOICE_COUNT / ZONE_COUNT
+	for zone: int in ZONE_COUNT:
+		for _voice: int in voices_per_zone:
+			var player := AudioStreamPlayer.new()
+			player.stream = _streams[zone]
+			player.volume_db = Config.NOTE_VOLUME_DB
+			add_child(player)
+			_players[zone].append(player)

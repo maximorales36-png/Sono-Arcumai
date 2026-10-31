@@ -92,19 +92,31 @@ const LAYER_COLORS: Array[Color] = [
 # Períodos de ciclo por capa, en segundos. Que no sean múltiplos entre sí.
 const LAYER_PERIOD_SECONDS: Array[float] = [7.0, 9.5, 11.3, 13.7]
 
-const LAYER_SAMPLE_PATHS: Array[String] = [
-	"res://assets/samples/layer_1.wav",
-	"res://assets/samples/layer_2.wav",
-	"res://assets/samples/layer_3.wav",
-	"res://assets/samples/layer_4.wav",
+# Dos samples por capa: [0] grave (filas de abajo), [1] agudo (filas de arriba).
+const LAYER_SAMPLE_PATHS: Array[Array] = [
+	["res://assets/samples/layer_1_low.wav", "res://assets/samples/layer_1_high.wav"],
+	["res://assets/samples/layer_2_low.wav", "res://assets/samples/layer_2_high.wav"],
+	["res://assets/samples/layer_3_low.wav", "res://assets/samples/layer_3_high.wav"],
+	["res://assets/samples/layer_4_low.wav", "res://assets/samples/layer_4_high.wav"],
 ]
+
+# Nota MIDI de cada sample, en el mismo orden que LAYER_SAMPLE_PATHS.
+# Por ahora todos iguales (placeholder); Maxi define la raíz de cada uno.
+const LAYER_SAMPLE_ROOT_MIDI: Array[Array] = [
+	[57, 69],
+	[57, 69],
+	[57, 69],
+	[57, 69],
+]
+
+# Fila donde cambia la zona: de esta fila para abajo suena el sample grave.
+const ZONE_SPLIT_ROW := 5
 
 # Pentatónica menor, dos octavas: una entrada por fila, de grave a agudo.
 const SCALE_SEMITONES: Array[int] = [0, 3, 5, 7, 10, 12, 15, 17, 19, 22]
 
-# Nota MIDI que suena en la fila de abajo, y nota raíz del sample que suena sin transponer.
+# Nota MIDI que suena en la fila de abajo.
 const GRID_BOTTOM_MIDI := 57
-const SAMPLE_ROOT_MIDI := 57
 
 const VOICE_COUNT := 16
 const NOTE_VOLUME_DB := -6.0
