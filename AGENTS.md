@@ -96,6 +96,10 @@ Ejecutar desde la raíz del proyecto.
 `godot --headless --path . --quit` es sobre todo un chequeo de parseo e import: no valida lo visual ni el audio.
 Eso lo prueba Maxi.
 
+Al cerrar con `--quit`, Godot puede avisar de 2 instancias y 1 recurso de audio liberados fuera de orden
+(`AudioStreamWAV` y `AudioStreamPlaybackWAV`). Es un artefacto del cierre, no un error: el conteo de objetos
+no crece al disparar notas (medido en S2). Verificado igual en la corrida en ventana.
+
 Al crear o renombrar un `class_name` (o un script nuevo), corré una vez
 `godot --headless --path . --editor --quit` para que Godot regenere el caché de clases globales.
 Sin eso, `Config` no existe y los scripts no compilan.
