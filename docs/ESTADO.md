@@ -5,9 +5,9 @@ Mantenerlo corto: reemplazar lo viejo, no acumular.
 
 ## Dónde estamos
 
-- S0, S1 y S2 completos en la máquina de desarrollo, con samples placeholder (dos por capa).
-- S2 suena: grilla, notas, nota fantasma y línea de barrido. La prueba con una persona dio bien.
-- Bloqueado antes de S3: S0b en el arcade y la entrega de los samples reales.
+- S0, S1, S2 y S3 completos en la máquina de desarrollo, con samples placeholder (dos por capa, cuatro capas).
+- Suenan las 4 capas a la vez, cada una con su período y su color; `btn2` cambia la capa activa.
+- Bloqueado antes de S4: S0b en el arcade y la entrega de los samples reales.
 
 ## Datos a confirmar (Maxi)
 
@@ -34,22 +34,26 @@ Mantenerlo corto: reemplazar lo viejo, no acumular.
 - `scenes/main.tscn`: un único nodo raíz con `scripts/main.gd`.
 - `scripts/main.gd`: registra el InputMap en `_enter_tree`, crea `State`, `Sequencer`, `VoicePool`, `Controller`
   y `View`, conecta `step_entered`, oculta el mouse, Esc cierra solo en builds de debug.
-- `scripts/config.gd`: acciones y mapeos, grilla (16x10, 1 capa), tiempos del cursor, colores, períodos por capa,
-  escala pentatónica menor de 10 grados, dos samples por capa (grave/agudo) con su nota raíz, corte de zona y volumen.
+- `scripts/config.gd`: acciones y mapeos, grilla (16x10, 4 capas), tiempos del cursor, colores por capa, períodos por
+  capa con `TEMPO_SCALE` global, escala pentatónica menor de 10 grados, dos samples por capa (grave/agudo) con su
+  nota raíz, corte de zona y volumen.
 - `scripts/state.gd`: `State` y `State.Layer` (notas como conjunto de celdas `Vector2i`), cursor, `toggle_note`.
 - `scripts/controller.gd`: cursor con repetición propia (250 ms inicial, 80 ms después), `btn1` alterna nota,
-  `posmod` en X y `clampi` en Y.
-- `scripts/sequencer.gd`: fase por capa calculada desde el origen; `step_entered(layer, step)` al cambiar de paso.
-- `scripts/voice_pool.gd`: dos zonas (fila 5 y abajo = sample grave, arriba = agudo), 8 voces por zona en round-robin
-  a -6 dB, `pitch_scale` = 2^(semitonos/12) contra la raíz del sample de la zona, nota fantasma del cursor,
-  zona muda con `push_error` si falta el sample.
-- `scripts/view.gd`: grilla, notas, línea de barrido por capa y cursor con contorno parpadeante (600 ms).
-- `tools/make_placeholder_wav.gd` y `assets/samples/layer_1_low.wav` / `layer_1_high.wav`:
-  senos de 220 Hz (MIDI 57) y 440 Hz (MIDI 69) con decay, 2 s, mono, 44.1 kHz.
-- Verificado por mí: `--headless --quit` sin errores de script; alturas por zona (fila 9 y fila 5: 1.000 y 1.782
-  sobre el grave; fila 4 y fila 0: 1.000 y 1.782 sobre el agudo); cada zona carga y usa su propio sample;
-  disparos correctos (nota en el paso, fantasma en el cursor, nada en paso vacío, nada en capa inactiva);
-  captura de pantalla con notas y línea de barrido.
+  `btn2` pasa a la capa siguiente (circular) y emite `layer_changed`, `posmod` en X y `clampi` en Y.
+- `scripts/sequencer.gd`: fase por capa calculada desde el origen con su período y `TEMPO_SCALE`;
+  `step_entered(layer, step)` al cambiar de paso.
+- `scripts/voice_pool.gd`: un pool por capa y zona (4 x 2 x 8 voces = 64 reproductores), `pitch_scale` =
+  2^(semitonos/12) contra la raíz del sample de la zona, suenan las notas de todas las capas y la nota fantasma
+  solo en la capa activa, vista previa al cambiar de capa, zona muda con `push_error` si falta el sample.
+- `scripts/view.gd`: grilla, notas de la capa activa, una línea de barrido por capa (la activa más gruesa y encima)
+  y cursor con contorno parpadeante (600 ms).
+- `tools/make_placeholder_wav.gd` y `assets/samples/layer_N_low.wav` / `layer_N_high.wav` (N = 1…4):
+  senos con decay, 2 s, mono, 44.1 kHz, raíz MIDI 57 el grave y 69 el agudo, con armónicos distintos por capa
+  para distinguirlas de oído.
+- Verificado por mí: `--headless --quit` sin errores de script; 4 capas con sus 8 samples cargados; alturas por zona
+  (fila 9 = 1.000 y fila 0 = 1.782 en las cuatro capas); una nota en el paso 3 suena en las 4 capas; la nota fantasma
+  solo suena en la capa activa; `btn2` recorre 1→2→3→4→1 conservando las notas y hace sonar la vista previa;
+  avance de fase medido en 2 s dentro de 0.01 pasos de lo esperado; captura con las 4 líneas de distinto color.
 
 ### Medición de tiempo (S2)
 
@@ -57,6 +61,9 @@ Corrida en ventana de 90 s con el monitor a 165 Hz: 204 pasos, intervalo medio 4
 retraso medio del disparo dentro del paso 3.5 ms, un solo pico de 68 ms (coincide con un hitch de frame de 108 ms),
 deriva acumulada 4.7 ms (dentro de la cuantización de frame), 0 pasos salteados, objetos estables (1567 → 1562).
 En el arcade, a 60 fps, el peor caso esperado por frame es de ~17 ms.
+
+En S3 se midió el avance de las 4 líneas durante 2 s: 4.59 / 3.38 / 2.84 / 2.34 pasos, todos dentro de 0.01 pasos
+de lo esperado por período.
 
 ## Decisiones tomadas durante el desarrollo
 
@@ -73,6 +80,12 @@ En el arcade, a 60 fps, el peor caso esperado por frame es de ~17 ms.
 - S2: la nota fantasma usa la misma voz y el mismo volumen que una nota asentada.
 - S2: dos samples por capa (decisión de Maxi): filas 5–9 con el grave, 0–4 con el agudo. Cada zona se estira
   como máximo 10 semitonos en vez de 22. La raíz MIDI de cada sample se declara en `LAYER_SAMPLE_ROOT_MIDI`.
+- S3: un pool de voces por capa y zona, creado al arrancar. Cambiar de capa no recarga samples ni corta lo que suena.
+- S3: suenan las notas de todas las capas; la nota fantasma (cursor) solo en la capa activa.
+- S3: `btn2` emite `layer_changed` y main lo conecta a la vista previa del cursor, para que el cambio de timbre
+  se escuche en el acto.
+- S3: la línea de la capa activa va más gruesa y se dibuja última (encima). Es la única marca extra en pantalla.
+- S3: `TEMPO_SCALE` divide los períodos (más grande = más rápido), fijo en 1.0 por ahora.
 
 ## Propuestas de diseño
 
@@ -87,9 +100,11 @@ Formato: qué se propone, por qué, y qué evidencia lo sostiene (por ejemplo, l
 - Confirmar en el arcade si el encoder aparece como gamepad o como teclado.
 - Probar en el arcade la sensación del cursor: 250 ms de retardo y 80 ms por paso pueden quedar lentos o rápidos.
 - Dejar la app 10 minutos corrida en el arcade (acá se midieron 90 s) y escuchar si aparece algún corte.
+- Escuchar con las 4 capas si se distinguen de oído y si el conjunto no se ensucia. Los placeholders son senos;
+  con los samples reales cambia.
 - Con los samples reales, escuchar la unión de las dos zonas: en la fila 5 (grave, 10 semitonos arriba) y en la
   fila 4 (agudo, sin transponer) el timbre tiene que emparejar. Si no, mover `ZONE_SPLIT_ROW` o ajustar raíces.
-- Medir FPS en el arcade (S0b). Optimizar la vista solo si hay problema.
+- Medir FPS en el arcade (S0b) con las 4 capas y 64 voces. Optimizar la vista solo si hay problema.
 - Medir el pico de RAM al guardar una grabación de 8 minutos (S5).
 
 ## Bugs conocidos
