@@ -30,6 +30,7 @@ func _draw() -> void:
 	_draw_sweep_lines(grid_rect)
 	_draw_notes(grid_rect, cell_size)
 	_draw_cursor(grid_rect, cell_size)
+	_draw_parameter_pad()
 
 
 func _grid_rect() -> Rect2:
@@ -142,3 +143,47 @@ func _draw_cursor(grid_rect: Rect2, cell_size: Vector2) -> void:
 func _cursor_visible() -> bool:
 	var half_period_msec := Config.CURSOR_BLINK_PERIOD_MSEC / 2
 	return Time.get_ticks_msec() % Config.CURSOR_BLINK_PERIOD_MSEC < half_period_msec
+
+
+# Mientras B3 o B4 están apretados: cuadradito abajo a la derecha con un punto.
+# X = primer parámetro del plano (izquierda a derecha), Y = segundo (abajo a arriba).
+func _draw_parameter_pad() -> void:
+	if state.active_plane == Config.PARAMETER_PLANE_NONE:
+		return
+	var layer: State.Layer = state.get_active_layer()
+	var horizontal := 0.0
+	var vertical := 0.0
+	if state.active_plane == Config.PARAMETER_PLANE_TIMBRE:
+		horizontal = _log_ratio(layer.cutoff_hz, Config.CUTOFF_MIN_HZ, Config.CUTOFF_MAX_HZ)
+		vertical = _ratio(layer.reverb_wet, Config.REVERB_MIN_WET, Config.REVERB_MAX_WET)
+	else:
+		horizontal = _ratio(layer.attack_seconds, Config.ATTACK_MIN_SECONDS, Config.ATTACK_MAX_SECONDS)
+		vertical = _ratio(layer.decay_seconds, Config.DECAY_MIN_SECONDS, Config.DECAY_MAX_SECONDS)
+
+	var pad_size := Vector2.ONE * Config.PARAMETER_PAD_SIZE
+	var pad_rect := Rect2(
+		get_viewport_rect().size - Vector2.ONE * Config.PARAMETER_PAD_MARGIN - pad_size,
+		pad_size
+	)
+	draw_rect(pad_rect, Config.PARAMETER_TRACK_COLOR)
+
+	var dot_half := Config.PARAMETER_PAD_DOT_SIZE * 0.5
+	var inner_size := pad_rect.size - Vector2.ONE * Config.PARAMETER_PAD_DOT_SIZE
+	var dot_center := pad_rect.position + Vector2(
+		horizontal * inner_size.x + dot_half,
+		(1.0 - vertical) * inner_size.y + dot_half
+	)
+	var layer_color: Color = Config.LAYER_COLORS[state.active_layer_index]
+	draw_rect(
+		Rect2(dot_center - Vector2.ONE * dot_half, Vector2.ONE * Config.PARAMETER_PAD_DOT_SIZE),
+		layer_color
+	)
+
+
+func _ratio(value: float, minimum: float, maximum: float) -> float:
+	return clampf((value - minimum) / (maximum - minimum), 0.0, 1.0)
+
+
+# Para el cutoff, que se mueve en proporción, la posición visual también es proporcional.
+func _log_ratio(value: float, minimum: float, maximum: float) -> float:
+	return clampf(log(value / minimum) / log(maximum / minimum), 0.0, 1.0)

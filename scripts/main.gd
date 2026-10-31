@@ -32,6 +32,9 @@ func _ready() -> void:
 	_controller.state = _state
 	add_child(_controller)
 	_controller.layer_changed.connect(_voice_pool.play_cursor_preview)
+	# Primero el bus, después la nota: la vista previa suena ya con el parámetro nuevo.
+	_controller.parameters_changed.connect(_voice_pool.apply_layer_parameters)
+	_controller.parameters_changed.connect(_voice_pool.play_cursor_preview)
 
 	_view = View.new()
 	_view.state = _state

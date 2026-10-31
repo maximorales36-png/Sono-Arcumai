@@ -125,3 +125,45 @@ const VOICE_COUNT := 16
 const NOTE_VOLUME_DB := -6.0
 const SWEEP_LINE_WIDTH := 2.0
 const SWEEP_LINE_WIDTH_ACTIVE := 3.0
+
+# --- Timbre y envolvente (S4) ---
+
+# Un bus por capa, nombrado layer_1 … layer_4.
+const BUS_NAME_PREFIX := "layer_"
+
+const CUTOFF_MIN_HZ := 200.0
+const CUTOFF_MAX_HZ := 12000.0
+# El cutoff se mueve en proporción (saltos de un 15 %), no en pasos fijos de Hz.
+const CUTOFF_STEP_RATIO := 1.15
+
+const REVERB_MIN_WET := 0.0
+const REVERB_MAX_WET := 1.0
+const REVERB_STEP := 0.05
+
+const ATTACK_MIN_SECONDS := 0.005
+const ATTACK_MAX_SECONDS := 1.0
+const ATTACK_STEP_SECONDS := 0.02
+
+const DECAY_MIN_SECONDS := 0.1
+const DECAY_MAX_SECONDS := 4.0
+const DECAY_STEP_SECONDS := 0.1
+
+# Valores al arrancar: filtro abierto, sin reverb, ataque corto y cola de 2 s.
+const REVERB_DEFAULT_WET := 0.0
+const ATTACK_DEFAULT_SECONDS := 0.01
+const DECAY_DEFAULT_SECONDS := 2.0
+
+# La voz arranca desde acá para que el ataque se escuche, y termina acá.
+const SILENT_VOLUME_DB := -60.0
+
+# Qué plano mueve el joystick: ninguno, timbre (B3) o envolvente (B4).
+const PARAMETER_PLANE_NONE := 0
+const PARAMETER_PLANE_TIMBRE := 1
+const PARAMETER_PLANE_ENVELOPE := 2
+
+# Indicador en pantalla mientras B3 o B4 están apretados: un cuadrado con un punto,
+# X = parámetro horizontal, Y = parámetro vertical.
+const PARAMETER_PAD_SIZE := 72.0
+const PARAMETER_PAD_DOT_SIZE := 9.0
+const PARAMETER_PAD_MARGIN := 32.0
+const PARAMETER_TRACK_COLOR := Color(0.20, 0.20, 0.26)

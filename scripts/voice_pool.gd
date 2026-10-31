@@ -1,6 +1,6 @@
 # Reproduce las notas de todas las capas con el sample grave o agudo según la fila,
-# y la nota fantasma del cursor en la capa activa. Escucha step_entered y lee el State.
-# Depende de config.gd y de state.gd.
+# y la nota fantasma del cursor en la capa activa. Aplica el filtro, la reverb y la envolvente
+# de cada capa. Escucha step_entered y lee el State. Depende de config.gd y de state.gd.
 class_name VoicePool
 extends Node
 
@@ -14,6 +14,14 @@ var state: State
 var _streams: Array = []
 var _players: Array = []
 var _next_player: Array = []
+
+# Efectos de cada bus, uno por capa, para moverlos sin buscarlos por índice.
+var _bus_names: Array[String] = []
+var _low_pass: Array[AudioEffectLowPassFilter] = []
+var _reverb: Array[AudioEffectReverb] = []
+
+# Envolvente de cada voz: si la voz se reusa, se corta el tween anterior.
+var _envelope_tweens: Dictionary[AudioStreamPlayer, Tween] = {}
 
 
 func _ready() -> void:
@@ -30,6 +38,7 @@ func _ready() -> void:
 		Config.LAYER_SAMPLE_ROOT_MIDI.size() == Config.LAYER_COUNT,
 		"[voice_pool] LAYER_SAMPLE_ROOT_MIDI tiene %d capas y LAYER_COUNT es %d" % [Config.LAYER_SAMPLE_ROOT_MIDI.size(), Config.LAYER_COUNT]
 	)
+	_create_buses()
 	_load_samples()
 	_create_players()
 
@@ -56,7 +65,29 @@ func play_row(layer: int, row: int) -> void:
 	_next_player[layer][zone] = (voice_index + 1) % players.size()
 	var player: AudioStreamPlayer = players[voice_index]
 	player.pitch_scale = pitch_scale_for_row(layer, row)
+	_start_note(player, layer)
+
+
+# Lleva al bus de la capa el cutoff y la reverb que tiene guardados el State.
+func apply_layer_parameters(layer: int) -> void:
+	assert(layer >= 0 and layer < Config.LAYER_COUNT, "[voice_pool] capa fuera de rango: %d" % layer)
+	var layer_data: State.Layer = state.layers[layer]
+	_low_pass[layer].cutoff_hz = layer_data.cutoff_hz
+	_reverb[layer].wet = layer_data.reverb_wet
+
+
+# Ataque y caída por volumen en cada voz, encima del decay propio del sample.
+func _start_note(player: AudioStreamPlayer, layer: int) -> void:
+	var layer_data: State.Layer = state.layers[layer]
+	var previous: Tween = _envelope_tweens.get(player)
+	if previous != null and previous.is_valid():
+		previous.kill()
+	player.volume_db = Config.SILENT_VOLUME_DB
 	player.play()
+	var tween := player.create_tween()
+	tween.tween_property(player, "volume_db", Config.NOTE_VOLUME_DB, layer_data.attack_seconds)
+	tween.tween_property(player, "volume_db", Config.SILENT_VOLUME_DB, layer_data.decay_seconds)
+	_envelope_tweens[player] = tween
 
 
 # Al cambiar de capa, la fila del cursor suena enseguida con el timbre nuevo.
@@ -74,6 +105,32 @@ func pitch_scale_for_row(layer: int, row: int) -> float:
 	var target_midi := Config.GRID_BOTTOM_MIDI + Config.SCALE_SEMITONES[Config.ROWS - 1 - row]
 	var root_midi: int = Config.LAYER_SAMPLE_ROOT_MIDI[layer][zone_for_row(row)]
 	return pow(2.0, float(target_midi - root_midi) / 12.0)
+
+
+func _create_buses() -> void:
+	for layer: int in Config.LAYER_COUNT:
+		var bus_name := Config.BUS_NAME_PREFIX + str(layer + 1)
+		assert(
+			AudioServer.get_bus_index(bus_name) == -1,
+			"[voice_pool] ya existe el bus %s: no se agrega dos veces" % bus_name
+		)
+		var bus_index := AudioServer.bus_count
+		AudioServer.add_bus(bus_index)
+		AudioServer.set_bus_name(bus_index, bus_name)
+
+		var layer_data: State.Layer = state.layers[layer]
+		var low_pass := AudioEffectLowPassFilter.new()
+		low_pass.cutoff_hz = layer_data.cutoff_hz
+		AudioServer.add_bus_effect(bus_index, low_pass)
+
+		var reverb := AudioEffectReverb.new()
+		reverb.dry = 1.0
+		reverb.wet = layer_data.reverb_wet
+		AudioServer.add_bus_effect(bus_index, reverb)
+
+		_bus_names.append(bus_name)
+		_low_pass.append(low_pass)
+		_reverb.append(reverb)
 
 
 func _load_samples() -> void:
@@ -102,6 +159,7 @@ func _create_players() -> void:
 			for _voice: int in voices_per_zone:
 				var player := AudioStreamPlayer.new()
 				player.stream = _streams[layer][zone]
+				player.bus = _bus_names[layer]
 				player.volume_db = Config.NOTE_VOLUME_DB
 				add_child(player)
 				zone_players.append(player)

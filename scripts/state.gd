@@ -7,6 +7,8 @@ var layers: Array[Layer] = []
 var active_layer_index: int = 0
 # Vista de todas las capas a la vez: no hay capa activa y no se edita.
 var show_all_layers: bool = false
+# Plano que mueve el joystick ahora mismo (Config.PARAMETER_PLANE_*).
+var active_plane: int = Config.PARAMETER_PLANE_NONE
 var cursor_step: int = 0
 var cursor_row: int = 0
 
@@ -16,6 +18,12 @@ class Layer:
 
 	# Clave Vector2i(paso, fila). Solo existen las celdas que tienen nota.
 	var notes: Dictionary[Vector2i, bool] = {}
+
+	# Parámetros de timbre y envolvente propios de la capa (S4).
+	var cutoff_hz: float = Config.CUTOFF_MAX_HZ
+	var reverb_wet: float = Config.REVERB_DEFAULT_WET
+	var attack_seconds: float = Config.ATTACK_DEFAULT_SECONDS
+	var decay_seconds: float = Config.DECAY_DEFAULT_SECONDS
 
 
 func _init() -> void:
