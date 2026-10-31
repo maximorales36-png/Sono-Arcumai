@@ -90,19 +90,44 @@ func _draw_sweep_line(layer: int, grid_rect: Rect2, line_width: float) -> void:
 
 func _draw_notes(grid_rect: Rect2, cell_size: Vector2) -> void:
 	if state.show_all_layers:
-		for layer: int in Config.LAYER_COUNT:
-			_draw_layer_notes(layer, grid_rect, cell_size)
+		_draw_all_layers_notes(grid_rect, cell_size)
 		return
-	_draw_layer_notes(state.active_layer_index, grid_rect, cell_size)
-
-
-func _draw_layer_notes(layer: int, grid_rect: Rect2, cell_size: Vector2) -> void:
+	var layer: int = state.active_layer_index
 	var layer_color: Color = Config.LAYER_COLORS[layer]
+	for cell: Vector2i in state.layers[layer].notes:
+		draw_rect(_note_rect(grid_rect, cell_size, cell.x, cell.y), layer_color)
+
+
+func _draw_all_layers_notes(grid_rect: Rect2, cell_size: Vector2) -> void:
+	var layers_by_cell: Dictionary[Vector2i, Array] = {}
+	for layer: int in Config.LAYER_COUNT:
+		for cell: Vector2i in state.layers[layer].notes:
+			if not layers_by_cell.has(cell):
+				layers_by_cell[cell] = []
+			var cell_layers: Array = layers_by_cell[cell]
+			cell_layers.append(layer)
+	for cell: Vector2i in layers_by_cell:
+		_draw_shared_note(_note_rect(grid_rect, cell_size, cell.x, cell.y), layers_by_cell[cell])
+
+
+# Si varias capas tienen nota en la misma celda, el cuadrado se parte en franjas horizontales,
+# una por capa, en orden de capa. Con una sola capa queda el cuadrado entero.
+func _draw_shared_note(note_rect: Rect2, layers: Array) -> void:
+	var band_height := note_rect.size.y / float(layers.size())
+	for index: int in layers.size():
+		var band := Rect2(
+			Vector2(note_rect.position.x, note_rect.position.y + band_height * float(index)),
+			Vector2(note_rect.size.x, band_height)
+		)
+		var layer: int = layers[index]
+		draw_rect(band, Config.LAYER_COLORS[layer])
+
+
+func _note_rect(grid_rect: Rect2, cell_size: Vector2, step: int, row: int) -> Rect2:
 	var note_size := cell_size * Config.NOTE_FILL_RATIO
 	var inset := (cell_size - note_size) * 0.5
-	for cell: Vector2i in state.layers[layer].notes:
-		var cell_rect := _cell_rect(grid_rect, cell_size, cell.x, cell.y)
-		draw_rect(Rect2(cell_rect.position + inset, note_size), layer_color)
+	var cell_rect := _cell_rect(grid_rect, cell_size, step, row)
+	return Rect2(cell_rect.position + inset, note_size)
 
 
 func _draw_cursor(grid_rect: Rect2, cell_size: Vector2) -> void:
