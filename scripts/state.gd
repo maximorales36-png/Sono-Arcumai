@@ -5,6 +5,8 @@ extends RefCounted
 
 var layers: Array[Layer] = []
 var active_layer_index: int = 0
+# Vista de todas las capas a la vez: no hay capa activa y no se edita.
+var show_all_layers: bool = false
 var cursor_step: int = 0
 var cursor_row: int = 0
 
@@ -22,6 +24,10 @@ func _init() -> void:
 
 
 func get_active_layer() -> Layer:
+	assert(
+		not show_all_layers,
+		"[state] no hay capa activa: se está mostrando la vista de todas las capas"
+	)
 	assert(
 		active_layer_index >= 0 and active_layer_index < layers.size(),
 		"[state] capa activa fuera de rango: %d" % active_layer_index

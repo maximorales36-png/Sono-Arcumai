@@ -40,7 +40,8 @@ func play_step(layer: int, step: int) -> void:
 	for cell: Vector2i in state.layers[layer].notes:
 		if cell.x == step:
 			play_row(layer, cell.y)
-	if layer == state.active_layer_index and step == state.cursor_step:
+	# La nota fantasma no suena en la vista de todas las capas: no hay capa activa.
+	if not state.show_all_layers and layer == state.active_layer_index and step == state.cursor_step:
 		play_row(layer, state.cursor_row)
 
 

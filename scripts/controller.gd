@@ -16,6 +16,12 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
+	# En la vista de todas las capas solo responde B2: es una vista para mirar.
+	if state.show_all_layers:
+		if Input.is_action_just_pressed(Config.ACTION_BTN2):
+			_select_next_layer()
+		return
+
 	var now_msec := Time.get_ticks_msec()
 	_handle_direction(Config.ACTION_MOVE_UP, Vector2i(0, -1), now_msec)
 	_handle_direction(Config.ACTION_MOVE_DOWN, Vector2i(0, 1), now_msec)
@@ -59,8 +65,20 @@ func _toggle_note() -> void:
 	])
 
 
-# Circular: después de la última capa vuelve a la primera.
+# Circular: capa 1 → 2 → 3 → 4 → vista de todas → capa 1.
 func _select_next_layer() -> void:
-	state.active_layer_index = (state.active_layer_index + 1) % Config.LAYER_COUNT
+	if state.show_all_layers:
+		state.show_all_layers = false
+		state.active_layer_index = 0
+		print("[controller] capa 1 de %d" % Config.LAYER_COUNT)
+		layer_changed.emit(state.active_layer_index)
+		return
+
+	if state.active_layer_index == Config.LAYER_COUNT - 1:
+		state.show_all_layers = true
+		print("[controller] vista de todas las capas (%d)" % Config.LAYER_COUNT)
+		return
+
+	state.active_layer_index += 1
 	print("[controller] capa %d de %d" % [state.active_layer_index + 1, Config.LAYER_COUNT])
 	layer_changed.emit(state.active_layer_index)

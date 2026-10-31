@@ -62,6 +62,12 @@ func _draw_grid_lines(grid_rect: Rect2, cell_size: Vector2) -> void:
 
 
 func _draw_sweep_lines(grid_rect: Rect2) -> void:
+	# En la vista de todas las capas todas las líneas valen lo mismo.
+	if state.show_all_layers:
+		for layer: int in Config.LAYER_COUNT:
+			_draw_sweep_line(layer, grid_rect, Config.SWEEP_LINE_WIDTH)
+		return
+
 	# Las inactivas primero y la activa al final, así la activa queda encima y más marcada.
 	for layer: int in Config.LAYER_COUNT:
 		if layer != state.active_layer_index:
@@ -83,16 +89,25 @@ func _draw_sweep_line(layer: int, grid_rect: Rect2, line_width: float) -> void:
 
 
 func _draw_notes(grid_rect: Rect2, cell_size: Vector2) -> void:
-	var layer_color: Color = Config.LAYER_COLORS[state.active_layer_index]
+	if state.show_all_layers:
+		for layer: int in Config.LAYER_COUNT:
+			_draw_layer_notes(layer, grid_rect, cell_size)
+		return
+	_draw_layer_notes(state.active_layer_index, grid_rect, cell_size)
+
+
+func _draw_layer_notes(layer: int, grid_rect: Rect2, cell_size: Vector2) -> void:
+	var layer_color: Color = Config.LAYER_COLORS[layer]
 	var note_size := cell_size * Config.NOTE_FILL_RATIO
 	var inset := (cell_size - note_size) * 0.5
-	for cell: Vector2i in state.get_active_layer().notes:
+	for cell: Vector2i in state.layers[layer].notes:
 		var cell_rect := _cell_rect(grid_rect, cell_size, cell.x, cell.y)
 		draw_rect(Rect2(cell_rect.position + inset, note_size), layer_color)
 
 
 func _draw_cursor(grid_rect: Rect2, cell_size: Vector2) -> void:
-	if not _cursor_visible():
+	# Sin capa activa no hay cursor.
+	if state.show_all_layers or not _cursor_visible():
 		return
 	var layer_color: Color = Config.LAYER_COLORS[state.active_layer_index]
 	var cursor_rect := _cell_rect(grid_rect, cell_size, state.cursor_step, state.cursor_row)
