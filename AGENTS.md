@@ -96,6 +96,10 @@ Ejecutar desde la raíz del proyecto.
 `godot --headless --path . --quit` es sobre todo un chequeo de parseo e import: no valida lo visual ni el audio.
 Eso lo prueba Maxi.
 
+Al crear o renombrar un `class_name` (o un script nuevo), corré una vez
+`godot --headless --path . --editor --quit` para que Godot regenere el caché de clases globales.
+Sin eso, `Config` no existe y los scripts no compilan.
+
 El export necesita un preset llamado exactamente `Linux` y las plantillas de exportación instaladas (se crea en S0).
 
 ## Escenas y configuración por código
@@ -181,6 +185,8 @@ scripts/
 tools/
   make_placeholder_wav.gd       temporal: WAV de prueba hasta que Maxi entregue samples
 ```
+
+Los archivos `.uid` y `.import` los genera Godot y se commitean: no se editan a mano.
 
 ## Qué NO hacer (en ningún momento, salvo pedido explícito)
 
