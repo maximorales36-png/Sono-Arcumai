@@ -1,0 +1,64 @@
+# Constantes del proyecto: acciones del InputMap y sus mapeos de teclado y gamepad.
+# Se usa como Config.STEPS, sin preload ni autoload. No depende de otros scripts.
+class_name Config
+
+const ACTION_MOVE_UP := &"move_up"
+const ACTION_MOVE_LEFT := &"move_left"
+const ACTION_MOVE_DOWN := &"move_down"
+const ACTION_MOVE_RIGHT := &"move_right"
+const ACTION_BTN1 := &"btn1"
+const ACTION_BTN2 := &"btn2"
+const ACTION_BTN3 := &"btn3"
+const ACTION_BTN4 := &"btn4"
+const ACTION_QUIT_DEBUG := &"quit_debug"
+
+# Única fuente de verdad de las acciones: el registro del InputMap y el HUD de S0 salen de acá.
+const ACTIONS: Array[StringName] = [
+	ACTION_MOVE_UP,
+	ACTION_MOVE_LEFT,
+	ACTION_MOVE_DOWN,
+	ACTION_MOVE_RIGHT,
+	ACTION_BTN1,
+	ACTION_BTN2,
+	ACTION_BTN3,
+	ACTION_BTN4,
+	ACTION_QUIT_DEBUG,
+]
+
+const INPUT_DEADZONE := 0.5
+
+# -1 = cualquier dispositivo. Verificado en 4.7.2: con device = 0 el evento de un gamepad
+# con otro índice no matchea. Así el encoder puede aparecer como gamepad 0, 1 o 3.
+const JOYPAD_DEVICE := -1
+
+# Teclado de desarrollo (WASD + HJKL) y teclado estilo arcade/MAME (flechas + Ctrl, Alt, Espacio, Shift).
+const KEY_BINDINGS := {
+	ACTION_MOVE_UP: [KEY_W, KEY_UP],
+	ACTION_MOVE_LEFT: [KEY_A, KEY_LEFT],
+	ACTION_MOVE_DOWN: [KEY_S, KEY_DOWN],
+	ACTION_MOVE_RIGHT: [KEY_D, KEY_RIGHT],
+	ACTION_BTN1: [KEY_H, KEY_CTRL],
+	ACTION_BTN2: [KEY_J, KEY_ALT],
+	ACTION_BTN3: [KEY_K, KEY_SPACE],
+	ACTION_BTN4: [KEY_L, KEY_SHIFT],
+	ACTION_QUIT_DEBUG: [KEY_ESCAPE],
+}
+
+const JOY_BUTTON_BINDINGS := {
+	ACTION_MOVE_UP: [JOY_BUTTON_DPAD_UP],
+	ACTION_MOVE_LEFT: [JOY_BUTTON_DPAD_LEFT],
+	ACTION_MOVE_DOWN: [JOY_BUTTON_DPAD_DOWN],
+	ACTION_MOVE_RIGHT: [JOY_BUTTON_DPAD_RIGHT],
+	ACTION_BTN1: [JOY_BUTTON_A],
+	ACTION_BTN2: [JOY_BUTTON_B],
+	ACTION_BTN3: [JOY_BUTTON_X],
+	ACTION_BTN4: [JOY_BUTTON_Y],
+}
+
+# Un joystick digital puede aparecer como eje analógico a fondo.
+const JOY_AXIS_BINDINGS := {
+	ACTION_MOVE_UP: [JOY_AXIS_LEFT_Y, -1.0],
+	ACTION_MOVE_LEFT: [JOY_AXIS_LEFT_X, -1.0],
+	ACTION_MOVE_DOWN: [JOY_AXIS_LEFT_Y, 1.0],
+	ACTION_MOVE_RIGHT: [JOY_AXIS_LEFT_X, 1.0],
+}
