@@ -62,3 +62,27 @@ const JOY_AXIS_BINDINGS := {
 	ACTION_MOVE_DOWN: [JOY_AXIS_LEFT_Y, 1.0],
 	ACTION_MOVE_RIGHT: [JOY_AXIS_LEFT_X, 1.0],
 }
+
+# --- Grilla y cursor ---
+
+const STEPS := 16
+const ROWS := 10
+const LAYER_COUNT := 1  # S3: 4 capas
+
+const CURSOR_REPEAT_DELAY_MSEC := 250
+const CURSOR_REPEAT_INTERVAL_MSEC := 80
+const CURSOR_BLINK_PERIOD_MSEC := 600
+const CURSOR_OUTLINE_WIDTH := 3.0
+
+const GRID_MARGIN := 56.0
+const GRID_LINE_COLOR := Color(0.20, 0.20, 0.26)
+const GRID_LINE_WIDTH := 1.0
+const NOTE_FILL_RATIO := 0.72
+
+# Un color por capa, en el orden en que se crean.
+const LAYER_COLORS: Array[Color] = [
+	Color(0.45, 0.85, 0.95),
+	Color(0.95, 0.65, 0.45),
+	Color(0.75, 0.95, 0.55),
+	Color(0.85, 0.65, 0.95),
+]
