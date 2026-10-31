@@ -46,8 +46,9 @@ Mantenerlo corto: reemplazar lo viejo, no acumular.
 - `scripts/voice_pool.gd`: un pool por capa y zona (4 x 2 x 8 voces = 64 reproductores), `pitch_scale` =
   2^(semitonos/12) contra la raíz del sample de la zona, suenan las notas de todas las capas y la nota fantasma
   solo en la capa activa, vista previa al cambiar de capa, zona muda con `push_error` si falta el sample.
-- `scripts/view.gd`: grilla, notas de la capa activa (o de las 4 en la vista de todas), una línea de barrido por capa
-  (la activa más gruesa y encima) y cursor con contorno parpadeante (600 ms) que desaparece en la vista de todas.
+- `scripts/view.gd`: grilla, notas de la capa activa (o de las 4 en la vista de todas, con las celdas compartidas
+  partidas en franjas por capa), una línea de barrido por capa (la activa más gruesa y encima) y cursor con contorno
+  parpadeante (600 ms) que desaparece en la vista de todas.
 - `tools/make_placeholder_wav.gd` y `assets/samples/layer_N_low.wav` / `layer_N_high.wav` (N = 1…4):
   senos con decay, 2 s, mono, 44.1 kHz, raíz MIDI 57 el grave y 69 el agudo, con armónicos distintos por capa
   para distinguirlas de oído.
@@ -55,8 +56,9 @@ Mantenerlo corto: reemplazar lo viejo, no acumular.
   (fila 9 = 1.000 y fila 0 = 1.782 en las cuatro capas); una nota en el paso 3 suena en las 4 capas; la nota fantasma
   solo suena en la capa activa; `btn2` recorre 1→2→3→4→vista de todas→1 conservando las notas y hace sonar la vista
   previa en cada capa; en la vista de todas, B1 y el joystick no tocan el estado y el fantasma no suena;
-  avance de fase medido en 2 s dentro de 0.01 pasos de lo esperado; capturas de la vista de todas (4 colores) y de
-  la capa 1 (solo su color).
+  celdas compartidas con 1, 2, 3 y 4 capas partidas en la cantidad correcta de franjas con el color de cada capa
+  (muestreado del PNG); avance de fase medido en 2 s dentro de 0.01 pasos de lo esperado; capturas de la vista de
+  todas y de la capa 1.
 
 ### Medición de tiempo (S2)
 
@@ -92,6 +94,8 @@ de lo esperado por período.
 - S3: después de la capa 4, `btn2` muestra la vista de todas las capas (decisión de Maxi). Es solo para mirar:
   `State.show_all_layers` corta el cursor, el fantasma, B1 y el joystick; solo responde B2, que vuelve a la capa 1
   y hace sonar la vista previa. `get_active_layer()` tiene un assert para que nadie edite en esa vista.
+- S3: en la vista de todas, una celda con varias capas se parte en franjas horizontales iguales, una por capa en
+  orden de capa (decisión de Maxi). Una celda con una sola capa queda entera.
 
 ## Propuestas de diseño
 

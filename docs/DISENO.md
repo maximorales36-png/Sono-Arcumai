@@ -90,8 +90,9 @@ Cada capa guarda sus propios parámetros de timbre y envolvente.
 - Todo con `_draw()`. Fondo oscuro, grilla sobria, cada capa de un color, líneas de barrido finas, notas como cuadrados,
   cursor como contorno parpadeante del color de la capa activa.
 - **Vista de todas las capas**: después de la última capa, B2 muestra las notas de las cuatro capas superpuestas,
-  cada una en su color. Es solo para mirar: no hay cursor, no suena la nota fantasma, B1 y el joystick no hacen nada,
-  y las cuatro líneas de barrido valen lo mismo. El siguiente B2 vuelve a la capa 1.
+  cada una en su color. Si varias capas tienen nota en la misma celda, el cuadrado se parte en franjas horizontales,
+  una por capa, en orden de capa. Es solo para mirar: no hay cursor, no suena la nota fantasma, B1 y el joystick
+  no hacen nada, y las cuatro líneas de barrido valen lo mismo. El siguiente B2 vuelve a la capa 1.
 - Nada de texto salvo el nombre de la pieza al guardar y los indicadores de B3/B4 mientras están apretados.
 - Mouse oculto. Pantalla completa.
 
