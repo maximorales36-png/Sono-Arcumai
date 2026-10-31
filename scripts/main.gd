@@ -31,6 +31,7 @@ func _ready() -> void:
 	_controller = Controller.new()
 	_controller.state = _state
 	add_child(_controller)
+	_controller.layer_changed.connect(_voice_pool.play_cursor_preview)
 
 	_view = View.new()
 	_view.state = _state

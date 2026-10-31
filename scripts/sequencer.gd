@@ -11,6 +11,11 @@ var _last_step: Array[int] = []
 
 
 func _ready() -> void:
+	assert(
+		Config.LAYER_PERIOD_SECONDS.size() == Config.LAYER_COUNT,
+		"[sequencer] LAYER_PERIOD_SECONDS tiene %d períodos y hay %d capas" % [Config.LAYER_PERIOD_SECONDS.size(), Config.LAYER_COUNT]
+	)
+	assert(Config.TEMPO_SCALE > 0.0, "[sequencer] TEMPO_SCALE tiene que ser mayor que cero")
 	_origin_usec = Time.get_ticks_usec()
 	for _layer: int in Config.LAYER_COUNT:
 		_last_step.append(-1)
@@ -30,5 +35,5 @@ func _process(_delta: float) -> void:
 func get_phase(layer: int) -> float:
 	assert(layer >= 0 and layer < Config.LAYER_COUNT, "[sequencer] capa fuera de rango: %d" % layer)
 	var elapsed_sec := float(Time.get_ticks_usec() - _origin_usec) / 1_000_000.0
-	var period_sec: float = Config.LAYER_PERIOD_SECONDS[layer]
+	var period_sec: float = Config.LAYER_PERIOD_SECONDS[layer] / Config.TEMPO_SCALE
 	return fposmod(elapsed_sec / period_sec, 1.0) * float(Config.STEPS)

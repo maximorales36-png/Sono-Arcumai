@@ -10,6 +10,10 @@ var sequencer: Sequencer
 func _ready() -> void:
 	assert(state != null, "[view] falta el State: main.gd tiene que asignarlo antes de agregar el nodo")
 	assert(sequencer != null, "[view] falta el Sequencer: main.gd tiene que asignarlo antes de agregar el nodo")
+	assert(
+		Config.LAYER_COLORS.size() == Config.LAYER_COUNT,
+		"[view] LAYER_COLORS tiene %d colores y hay %d capas" % [Config.LAYER_COLORS.size(), Config.LAYER_COUNT]
+	)
 
 
 func _process(_delta: float) -> void:
@@ -58,17 +62,24 @@ func _draw_grid_lines(grid_rect: Rect2, cell_size: Vector2) -> void:
 
 
 func _draw_sweep_lines(grid_rect: Rect2) -> void:
+	# Las inactivas primero y la activa al final, así la activa queda encima y más marcada.
 	for layer: int in Config.LAYER_COUNT:
-		var phase := sequencer.get_phase(layer)
-		var x := grid_rect.position.x + phase / float(Config.STEPS) * grid_rect.size.x
-		var line_color: Color = Config.LAYER_COLORS[layer]
-		line_color.a = 0.85
-		draw_line(
-			Vector2(x, grid_rect.position.y),
-			Vector2(x, grid_rect.end.y),
-			line_color,
-			Config.SWEEP_LINE_WIDTH
-		)
+		if layer != state.active_layer_index:
+			_draw_sweep_line(layer, grid_rect, Config.SWEEP_LINE_WIDTH)
+	_draw_sweep_line(state.active_layer_index, grid_rect, Config.SWEEP_LINE_WIDTH_ACTIVE)
+
+
+func _draw_sweep_line(layer: int, grid_rect: Rect2, line_width: float) -> void:
+	var phase := sequencer.get_phase(layer)
+	var x := grid_rect.position.x + phase / float(Config.STEPS) * grid_rect.size.x
+	var line_color: Color = Config.LAYER_COLORS[layer]
+	line_color.a = 0.85
+	draw_line(
+		Vector2(x, grid_rect.position.y),
+		Vector2(x, grid_rect.end.y),
+		line_color,
+		line_width
+	)
 
 
 func _draw_notes(grid_rect: Rect2, cell_size: Vector2) -> void:

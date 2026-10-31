@@ -67,7 +67,7 @@ const JOY_AXIS_BINDINGS := {
 
 const STEPS := 16
 const ROWS := 10
-const LAYER_COUNT := 1  # S3: 4 capas
+const LAYER_COUNT := 4
 
 const CURSOR_REPEAT_DELAY_MSEC := 250
 const CURSOR_REPEAT_INTERVAL_MSEC := 80
@@ -91,6 +91,9 @@ const LAYER_COLORS: Array[Color] = [
 
 # Períodos de ciclo por capa, en segundos. Que no sean múltiplos entre sí.
 const LAYER_PERIOD_SECONDS: Array[float] = [7.0, 9.5, 11.3, 13.7]
+
+# Multiplicador global de velocidad de las líneas. 1.0 = períodos tal cual.
+const TEMPO_SCALE := 1.0
 
 # Dos samples por capa: [0] grave (filas de abajo), [1] agudo (filas de arriba).
 const LAYER_SAMPLE_PATHS: Array[Array] = [
@@ -121,3 +124,4 @@ const GRID_BOTTOM_MIDI := 57
 const VOICE_COUNT := 16
 const NOTE_VOLUME_DB := -6.0
 const SWEEP_LINE_WIDTH := 2.0
+const SWEEP_LINE_WIDTH_ACTIVE := 3.0

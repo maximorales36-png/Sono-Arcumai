@@ -1,7 +1,9 @@
-# Lee las acciones del InputMap, mueve el cursor (con repetición al mantener) y asienta o borra notas.
-# Depende de config.gd y de state.gd: main.gd le asigna el State antes de agregarlo al árbol.
+# Lee las acciones del InputMap, mueve el cursor (con repetición al mantener), asienta o borra notas
+# y cambia de capa. Depende de config.gd y de state.gd: main.gd le asigna el State antes de agregarlo.
 class_name Controller
 extends Node
+
+signal layer_changed(layer: int)
 
 var state: State
 
@@ -22,6 +24,9 @@ func _process(_delta: float) -> void:
 
 	if Input.is_action_just_pressed(Config.ACTION_BTN1):
 		_toggle_note()
+
+	if Input.is_action_just_pressed(Config.ACTION_BTN2):
+		_select_next_layer()
 
 
 func _handle_direction(action: StringName, delta_step: Vector2i, now_msec: int) -> void:
@@ -49,4 +54,13 @@ func move_cursor(delta_step: Vector2i) -> void:
 func _toggle_note() -> void:
 	var placed := state.toggle_note(state.cursor_step, state.cursor_row)
 	var action_word := "asentada" if placed else "borrada"
-	print("[controller] nota %s: paso %d fila %d" % [action_word, state.cursor_step, state.cursor_row])
+	print("[controller] nota %s: capa %d paso %d fila %d" % [
+		action_word, state.active_layer_index + 1, state.cursor_step, state.cursor_row
+	])
+
+
+# Circular: después de la última capa vuelve a la primera.
+func _select_next_layer() -> void:
+	state.active_layer_index = (state.active_layer_index + 1) % Config.LAYER_COUNT
+	print("[controller] capa %d de %d" % [state.active_layer_index + 1, Config.LAYER_COUNT])
+	layer_changed.emit(state.active_layer_index)
