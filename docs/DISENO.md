@@ -50,7 +50,9 @@ Una sola regla: **mantener un botón cambia lo que mueve el joystick**.
 | B3 (mantenido) | El joystick mueve el plano tímbrico de la capa activa: X = brillo (filtro pasa-bajos), Y = cantidad de reverb |
 | B4 (mantenido) | El joystick mueve el plano de envolvente de la capa activa: X = ataque, Y = decay |
 
-Mientras B3 o B4 están apretados, el cursor no se mueve y la pantalla muestra una barra o punto con el valor del parámetro.
+Mientras B3 o B4 están apretados, el cursor no se mueve y la pantalla muestra un cuadrado con un punto
+(X = parámetro horizontal, Y = parámetro vertical). Cada paso del joystick hace sonar la nota del cursor con el
+parámetro nuevo, para escuchar el cambio sin esperar a que pase la línea de barrido.
 Cada capa guarda sus propios parámetros de timbre y envolvente.
 
 ## Guardar y salir
@@ -78,9 +80,11 @@ Cada capa guarda sus propios parámetros de timbre y envolvente.
 - La nota raíz MIDI de cada sample se declara en `config.gd` (`LAYER_SAMPLE_ROOT_MIDI`).
   Si falta un archivo, `push_error` con su nombre y esa zona queda muda sin cerrar la aplicación.
 - La altura se logra con `pitch_scale` = 2^(semitonos/12) relativo a la raíz del sample de la zona.
-- Cada capa tiene su propio bus de audio con un filtro pasa-bajos y un reverb. B3 modifica esos efectos.
+- Cada capa tiene su propio bus de audio (`layer_1` … `layer_4`) con un `AudioEffectLowPassFilter` y un
+  `AudioEffectReverb`. B3 mueve el cutoff (200–12000 Hz, en saltos proporcionales) y el wet de la reverb (0–1).
   Los buses se crean por código al arrancar (ver `AGENTS.md`), no hay `default_bus_layout.tres`.
-- La envolvente (ataque/decay) se hace con volumen en cada voz (por ejemplo con un `Tween`), sobre un pool de reproductores.
+- La envolvente (ataque/decay) se hace con un `Tween` de volumen por voz, sobre el pool de reproductores.
+  B4 mueve ataque (0.005–1 s) y decay (0.1–4 s) de la capa activa.
 - Un bus de grabación (`AudioEffectRecord`) captura la salida para guardar el WAV.
 - Hasta que Maxi entregue samples, usar un WAV placeholder simple (un seno con decay) generado una vez con
   `tools/make_placeholder_wav.gd`. Es temporal.
@@ -89,6 +93,8 @@ Cada capa guarda sus propios parámetros de timbre y envolvente.
 
 - Todo con `_draw()`. Fondo oscuro, grilla sobria, cada capa de un color, líneas de barrido finas, notas como cuadrados,
   cursor como contorno parpadeante del color de la capa activa.
+- Mientras B3 o B4 están apretados, abajo a la derecha aparece un cuadrado oscuro con un punto del color de la capa
+  activa: X = parámetro horizontal, Y = parámetro vertical (arriba = más). Desaparece al soltar el botón.
 - **Vista de todas las capas**: después de la última capa, B2 muestra las notas de las cuatro capas superpuestas,
   cada una en su color. Si varias capas tienen nota en la misma celda, el cuadrado se parte en franjas horizontales,
   una por capa, en orden de capa. Es solo para mirar: no hay cursor, no suena la nota fantasma, B1 y el joystick
