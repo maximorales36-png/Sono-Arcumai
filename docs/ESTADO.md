@@ -5,10 +5,14 @@ Mantenerlo corto: reemplazar lo viejo, no acumular.
 
 ## Dónde estamos
 
-- S0 a S4 completos en la máquina de desarrollo, con samples placeholder (dos por capa, cuatro capas).
+- S0 a S5 completos en la máquina de desarrollo, con samples placeholder (dos por capa, cuatro capas).
 - Suenan las 4 capas a la vez, cada una con su período, su color, su filtro y su reverb; `btn2` cambia la capa activa
   y, después de la cuarta, muestra las cuatro juntas en modo solo mirar. `btn3` mueve timbre y `btn4` envolvente.
-- Bloqueado antes de S5: S0b en el arcade, la entrega de los samples reales y la prueba de S4 por parte de Maxi.
+- S5: la sesión se graba desde el arranque (tope de 8 min); B3 + B4 mantenidos 2 s guardan JSON + WAV en
+  `user://piezas` y muestran el nombre 4 s; los 4 botones 5 s cierran la aplicación; a los 5 min sin input la pieza
+  se vacía y la grabación se reinicia.
+- Bloqueado antes de S6: S0b en el arcade, la entrega de los samples reales y la prueba de S5 por parte de Maxi.
+  El arranque automático quedó fuera de alcance (la mini PC ya abre un menú de juegos).
 
 ## Datos a confirmar (Maxi)
 
@@ -20,29 +24,34 @@ Mantenerlo corto: reemplazar lo viejo, no acumular.
 | Cómo ve Fedora el joystick (gamepad o teclado) | por confirmar en S0b (probar con `evtest` o `jstest`) |
 | Índice de gamepad que asigna el encoder | ya no bloquea: las acciones se registran con `device = -1` (cualquier dispositivo). Confirmar igual en S0b |
 | Salida de audio (parlante interno, jack, HDMI, parlante externo) | por confirmar |
-| Cómo se lanza hoy el arcade (frontend, launcher, escritorio) | por confirmar |
+| Cómo se lanza hoy el arcade (frontend, launcher, escritorio) | la mini PC abre un menú con todos los juegos; el arranque automático y el reinicio si se cuelga quedaron fuera de S5 |
 | Quién administra el arcade y conoce el combo de salida (4 botones, 5 s) | por confirmar |
-| Samples de las capas (`layer_N_low.wav` / `layer_N_high.wav`, N = 1…4, y nota raíz MIDI de cada uno) | por entregar (S4 se probó con placeholders) |
-| Carpeta donde se guardan las piezas | por decidir (S5) |
+| Samples de las capas (`layer_N_low.wav` / `layer_N_high.wav`, N = 1…4, y nota raíz MIDI de cada uno) | por entregar (S4 y S5 se probaron con placeholders) |
 | ¿La mini PC tiene internet? | por confirmar |
+| ¿Cuánto tarda en apagarse la mini PC con el combo de salida? | por confirmar en S0b |
 
 ## Hecho
 
 - `project.godot`: Godot 4.7.2, renderer Compatibility, viewport 1280x720 con stretch `canvas_items`,
-  pantalla completa, fondo oscuro (`default_clear_color`).
+  pantalla completa, fondo oscuro (`default_clear_color`), directorio de usuario propio (`arcumai`):
+  las piezas van a `~/.local/share/arcumai/piezas` en Linux y a `%APPDATA%\arcumai\piezas` en Windows.
 - `export_presets.cfg`: preset `Linux` (x86_64, pck embebido), salida `build/arcumai.x86_64`.
   Export verificado: ELF x86_64 de 70 MB. Falta probarlo en el arcade (S0b).
 - `scenes/main.tscn`: un único nodo raíz con `scripts/main.gd`.
-- `scripts/main.gd`: registra el InputMap en `_enter_tree`, crea `State`, `Sequencer`, `VoicePool`, `Controller`
-  y `View`, conecta `step_entered`, oculta el mouse, Esc cierra solo en builds de debug.
+- `scripts/main.gd`: registra el InputMap en `_enter_tree`, crea `State`, `Sequencer`, `VoicePool`, `Controller`,
+  `Saver` y `View`, conecta `step_entered` y los pedidos de guardar, salir y reiniciar; al reiniciar por inactividad
+  vuelve a aplicar los parámetros a los cuatro buses. Oculta el mouse; Esc cierra solo en builds de debug.
 - `scripts/config.gd`: acciones y mapeos, grilla (16x10, 4 capas), tiempos del cursor, colores por capa, períodos por
   capa con `TEMPO_SCALE` global, escala pentatónica menor de 10 grados, dos samples por capa (grave/agudo) con su
-  nota raíz, corte de zona, volumen y rangos de timbre/envolvente (S4).
+  nota raíz, corte de zona, volumen, rangos de timbre/envolvente (S4) y parámetros de sesión (S5: carpeta, tope de
+  grabación, tiempos de los combos, inactividad, palabras del nombre, cartel).
 - `scripts/state.gd`: `State` y `State.Layer` (notas como conjunto de celdas `Vector2i`), parámetros de timbre y
-  envolvente por capa, cursor, `active_plane`, `toggle_note`.
+  envolvente por capa, cursor, `active_plane`, `toggle_note`, nombre de la última pieza guardada con su vencimiento,
+  `reset_piece()` y `Layer.reset()`.
 - `scripts/controller.gd`: cursor con repetición propia (250 ms inicial, 80 ms después), `btn1` alterna nota,
   `btn2` pasa a la capa siguiente (circular) y emite `layer_changed`; con `btn3`/`btn4` apretados el joystick mueve
-  cutoff/reverb o ataque/decay de la capa activa y emite `parameters_changed`, sin mover el cursor.
+  cutoff/reverb o ataque/decay de la capa activa y emite `parameters_changed`, sin mover el cursor. Detecta los
+  combos de guardado y salida (`save_requested`, `quit_requested`) y el tiempo sin input (`inactivity_reset`).
 - `scripts/sequencer.gd`: fase por capa calculada desde el origen con su período y `TEMPO_SCALE`;
   `step_entered(layer, step)` al cambiar de paso.
 - `scripts/voice_pool.gd`: un pool por capa y zona (4 x 2 x 8 voces = 64 reproductores), un bus por capa
@@ -50,10 +59,13 @@ Mantenerlo corto: reemplazar lo viejo, no acumular.
   por voz (corta el tween anterior si la voz se reusa), `pitch_scale` = 2^(semitonos/12) contra la raíz del sample
   de la zona, suenan las notas de todas las capas y la nota fantasma solo en la capa activa, vista previa al cambiar
   de capa o de parámetro, zona muda con `push_error` si falta el sample.
+- `scripts/saver.gd`: `AudioEffectRecord` en el bus Master, grabación desde el arranque con tope de 8 min, WAV y
+  JSON en la carpeta de piezas al guardar (y grabación nueva después de guardar), nombre de dos palabras y dos
+  dígitos sin pisar una pieza existente, `restart_recording()` para el reinicio por inactividad.
 - `scripts/view.gd`: grilla, notas de la capa activa (o de las 4 en la vista de todas, con las celdas compartidas
   partidas en franjas por capa), una línea de barrido por capa (la activa más gruesa y encima), cursor con contorno
-  parpadeante (600 ms) que desaparece en la vista de todas y cuadrado con punto (abajo a la derecha) mientras
-  B3 o B4 están apretados.
+  parpadeante (600 ms) que desaparece en la vista de todas, cuadrado con punto (abajo a la derecha) mientras
+  B3 o B4 están apretados y el cartel "guardado: nombre" arriba al centro por 4 s.
 - `tools/make_placeholder_wav.gd` y `assets/samples/layer_N_low.wav` / `layer_N_high.wav` (N = 1…4):
   senos con decay, 2 s, mono, 44.1 kHz, raíz MIDI 57 el grave y 69 el agudo, con armónicos distintos por capa
   para distinguirlas de oído.
@@ -69,6 +81,12 @@ Mantenerlo corto: reemplazar lo viejo, no acumular.
   bus reflejando el valor; B4 llevó ataque a 0.005/1 s y decay a 0.1/4 s; el plano se activa con B3/B4 y vuelve a
   ninguno al soltar; envolvente medida con ataque 0.2 s y decay 0.4 s: -60 dB al disparar, -22.8 dB a 0.155 s,
   -60 dB a 0.70 s; captura del indicador con el punto en la posición esperada.
+- Verificado en S5: un combo de 0.9 s no guarda nada; el combo de 2 s escribe `WAV` (48 kHz estéreo 16 bits, se abre
+  con `AudioStreamWAV.load_from_file`) y `JSON` (versión 1, 4 capas, las notas asentadas con sus parámetros, fecha);
+  el cartel "guardado: nombre" aparece en el PNG; el reinicio por inactividad vacía las notas, vuelve a la capa 1,
+  borra el nombre y devuelve el cutoff del bus a 12000 Hz; al simular el tope de 8 min la grabación se corta
+  (`push_error`) y el guardado siguiente escribe JSON sin WAV y vuelve a grabar; el combo de los 4 botones a los 5 s
+  cierra la aplicación.
 
 ### Medición de tiempo (S2)
 
@@ -116,6 +134,19 @@ de lo esperado por período.
   la nota fantasma sola puede tardar hasta 13 s en sonar y el cambio tiene que escucharse en el acto.
 - S4: la envolvente es un `Tween` de `volume_db` por voz: sube desde -60 dB hasta -6 dB en el ataque y baja a -60 dB
   en el decay. Si la voz se reusa, se mata el tween anterior para que no pise la nota nueva.
+- S5: el directorio de usuario es propio (`arcumai`), así las piezas no se mezclan con otros juegos. `user://piezas`
+  queda en `~/.local/share/arcumai/piezas` en Linux.
+- S5: la grabación arranca al abrir la aplicación y se reinicia después de cada guardado y de cada reinicio por
+  inactividad. Así el WAV contiene la pieza desde que se encendió, y la RAM no crece más allá del tope de 8 min.
+- S5: al guardar se corta la grabación y se crea un `AudioEffectRecord` nuevo, en vez de reusar el anterior: el
+  efecto nuevo trae su propio buffer y no hay carrera con el que se está liberando.
+- S5: el combo de los 4 botones manda sobre el de guardado, para que la salida no escriba una pieza de paso.
+  Guardar necesita 2 s; salir, 5 s.
+- S5: el nombre de la pieza son dos palabras y dos dígitos. Antes de escribir se buscan hasta 20 nombres libres,
+  para no pisar una pieza anterior (las combinaciones son 20 x 19 x 90).
+- S5: la inactividad se mide con cualquier `InputEvent` y con cualquier acción apretada. Cualquier movimiento del
+  joystick cuenta como actividad.
+- S5: el arranque automático quedó fuera de S5 por decisión de Maxi: la mini PC ya abre un menú de juegos.
 
 ## Propuestas de diseño
 
@@ -140,11 +171,25 @@ Formato: qué se propone, por qué, y qué evidencia lo sostiene (por ejemplo, l
 - Con los samples reales, escuchar la unión de las dos zonas: en la fila 5 (grave, 10 semitonos arriba) y en la
   fila 4 (agudo, sin transponer) el timbre tiene que emparejar. Si no, mover `ZONE_SPLIT_ROW` o ajustar raíces.
 - Medir FPS en el arcade (S0b) con las 4 capas y 64 voces. Optimizar la vista solo si hay problema.
-- Medir el pico de RAM al guardar una grabación de 8 minutos (S5).
+- **S5 por Maxi**: armar una pieza, guardar con K + L mantenidas 2 s y escuchar el WAV desde la carpeta de piezas;
+  verificar que el cartel muestra el nombre 4 s. Dejar la aplicación 5 min sin tocar y ver que se vacía sola.
+  Probar el combo de los 4 botones 5 s y confirmar que no se dispara por accidente en uso normal.
+- Decidir si el combo de guardado (B3 + B4, 2 s) es cómodo, teniendo en cuenta que esos botones también mueven
+  timbre y envolvente mientras se los mantiene apretados.
+- Decidir si el reinicio por inactividad tiene que avisar algo en pantalla: hoy la grilla se vacía sin cartel.
+- Medir el pico de RAM al guardar una grabación de 8 minutos (~92 MB de audio en RAM, 48 kHz estéreo 16 bits,
+  y al codificar el WAV se duplica un momento).
+- Si una pieza se toca más de 8 min seguidos, la grabación ya se cortó: al guardar queda solo el JSON. Decidir si
+  conviene un tope más alto, avisar en pantalla o rotar la grabación.
+- Autostart en el arcade: la mini PC ya abre un menú de juegos; falta definir (con Maxi) si se agrega el juego a ese
+  menú y si hace falta reiniciarlo si se cuelga. Quedó fuera de S5.
 
 ## Bugs conocidos
 
-(vacío; el aviso de fuga de audio al cerrar es un artefacto de Godot, ver `AGENTS.md`)
+- Al abrir el editor, Godot puede escribir `default_bus_layout.tres` (con el volumen del Master tocado). No va en el
+  repo: borrarlo. Los buses se crean por código y ese archivo los contradice.
+
+(El aviso de fuga de audio al cerrar es un artefacto de Godot, ver `AGENTS.md`.)
 
 ## Resultado de la prueba con persona (S2)
 
