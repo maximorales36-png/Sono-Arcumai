@@ -1,5 +1,6 @@
-# Dibuja la grilla, las notas de la capa activa, las líneas de barrido y el cursor parpadeante.
-# Solo lee el estado: no lo modifica. Depende de config.gd, state.gd y sequencer.gd.
+# Dibuja la grilla, las notas de la capa activa, las líneas de barrido, el cursor parpadeante
+# y el cartel con el nombre de la pieza guardada. Solo lee el estado: no lo modifica.
+# Depende de config.gd, state.gd y sequencer.gd.
 class_name View
 extends Node2D
 
@@ -31,6 +32,7 @@ func _draw() -> void:
 	_draw_notes(grid_rect, cell_size)
 	_draw_cursor(grid_rect, cell_size)
 	_draw_parameter_pad()
+	_draw_save_message()
 
 
 func _grid_rect() -> Rect2:
@@ -187,3 +189,22 @@ func _ratio(value: float, minimum: float, maximum: float) -> float:
 # Para el cutoff, que se mueve en proporción, la posición visual también es proporcional.
 func _log_ratio(value: float, minimum: float, maximum: float) -> float:
 	return clampf(log(value / minimum) / log(maximum / minimum), 0.0, 1.0)
+
+
+# Cartel con el nombre de la pieza guardada, centrado en el margen de arriba por unos segundos.
+func _draw_save_message() -> void:
+	if state.saved_piece_name.is_empty():
+		return
+	if Time.get_ticks_msec() >= state.save_message_until_msec:
+		return
+	var font := ThemeDB.fallback_font
+	var font_size := Config.SAVE_MESSAGE_FONT_SIZE
+	var text := "guardado: " + state.saved_piece_name
+	var text_size := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
+	var view_size := get_viewport_rect().size
+	# Centrado vertical en el margen: la línea base queda media altura de texto más abajo.
+	var baseline := Vector2(
+		(view_size.x - text_size.x) * 0.5,
+		(Config.GRID_MARGIN + font.get_ascent(font_size)) * 0.5
+	)
+	draw_string(font, baseline, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Config.SAVE_MESSAGE_COLOR)

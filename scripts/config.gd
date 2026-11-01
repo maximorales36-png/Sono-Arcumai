@@ -167,3 +167,37 @@ const PARAMETER_PAD_SIZE := 72.0
 const PARAMETER_PAD_DOT_SIZE := 9.0
 const PARAMETER_PAD_MARGIN := 32.0
 const PARAMETER_TRACK_COLOR := Color(0.20, 0.20, 0.26)
+
+# --- Guardado y sesión (S5) ---
+
+# Carpeta de las piezas. Con el directorio de usuario propio, en Linux queda en
+# ~/.local/share/arcumai/piezas y en Windows en %APPDATA%\arcumai\piezas.
+const SAVE_DIR := "user://piezas"
+const SAVE_FORMAT_VERSION := 1
+
+# Tope de grabación por pieza: 8 minutos, unos 92 MB en RAM (48 kHz estéreo 16 bits).
+const RECORDING_MAX_SECONDS := 480.0
+
+# Combos: B3 + B4 guardan, los cuatro botones salen.
+const COMBO_NONE := 0
+const COMBO_SAVE := 1
+const COMBO_QUIT := 2
+const SAVE_COMBO_MSEC := 2000
+const QUIT_COMBO_MSEC := 5000
+
+# Sin entrada durante este tiempo, la pieza se vacía y la grabación se reinicia.
+const INACTIVITY_RESET_MSEC := 300000
+
+# Nombre corto de la pieza: dos palabras de esta lista y un número.
+const PIECE_NAME_WORDS: Array[String] = [
+	"mar", "luna", "rio", "piedra", "aire", "lento", "alto", "suave", "tarde", "noche",
+	"verde", "luz", "polvo", "campo", "viento", "frio", "calma", "sal", "barro", "sol",
+]
+
+# Cartel con el nombre de la pieza al guardar.
+const SAVE_MESSAGE_SECONDS := 4.0
+const SAVE_MESSAGE_FONT_SIZE := 24
+const SAVE_MESSAGE_COLOR := Color(0.85, 0.85, 0.90)
+
+# Intentos para encontrar un nombre de pieza que no exista ya en la carpeta.
+const SAVE_NAME_ATTEMPTS := 20

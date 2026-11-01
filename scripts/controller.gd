@@ -6,18 +6,43 @@ extends Node
 
 signal layer_changed(layer: int)
 signal parameters_changed(layer: int)
+signal save_requested
+signal quit_requested
+signal inactivity_reset
 
 var state: State
 
 # Próximo instante (ms) en que cada dirección vuelve a repetir.
 var _repeat_at_msec: Dictionary[StringName, int] = {}
 
+# Combo en curso y su instante de inicio.
+var _combo_kind: int = Config.COMBO_NONE
+var _combo_start_msec: int = 0
+var _combo_fired: bool = false
+
+# Última entrada del jugador, para el reinicio por inactividad.
+var _last_input_msec: int = 0
+
 
 func _ready() -> void:
 	assert(state != null, "[controller] falta el State: main.gd tiene que asignarlo antes de agregar el nodo")
+	_last_input_msec = Time.get_ticks_msec()
+
+
+func _input(_event: InputEvent) -> void:
+	_last_input_msec = Time.get_ticks_msec()
 
 
 func _process(_delta: float) -> void:
+	var now_msec := Time.get_ticks_msec()
+	if Input.is_anything_pressed():
+		_last_input_msec = now_msec
+	_check_inactivity(now_msec)
+
+	# Los combos mandan sobre el resto: mientras uno está en curso, nada más responde.
+	if _update_combos(now_msec):
+		return
+
 	_update_plane()
 
 	# En la vista de todas las capas solo responde B2: es una vista para mirar.
@@ -25,8 +50,6 @@ func _process(_delta: float) -> void:
 		if Input.is_action_just_pressed(Config.ACTION_BTN2):
 			_select_next_layer()
 		return
-
-	var now_msec := Time.get_ticks_msec()
 
 	# Con B3 o B4 apretados, el joystick mueve parámetros y el cursor no se mueve.
 	if state.active_plane == Config.PARAMETER_PLANE_TIMBRE:
@@ -59,6 +82,55 @@ func _update_plane() -> void:
 		return
 	state.active_plane = new_plane
 	print("[controller] modo %s" % _plane_name(new_plane))
+
+
+# Devuelve true mientras hay un combo en curso (B3+B4 para guardar, los cuatro para salir).
+func _update_combos(now_msec: int) -> bool:
+	var kind := _current_combo()
+	if kind == Config.COMBO_NONE:
+		_combo_kind = Config.COMBO_NONE
+		return false
+
+	# Mientras se mantiene el combo no se mueve nada más ni se muestra el indicador.
+	state.active_plane = Config.PARAMETER_PLANE_NONE
+	if kind != _combo_kind:
+		_combo_kind = kind
+		_combo_start_msec = now_msec
+		_combo_fired = false
+
+	var needed_msec := Config.SAVE_COMBO_MSEC if kind == Config.COMBO_SAVE else Config.QUIT_COMBO_MSEC
+	if _combo_fired or now_msec - _combo_start_msec < needed_msec:
+		return true
+
+	_combo_fired = true
+	if kind == Config.COMBO_SAVE:
+		print("[controller] combo de guardado")
+		save_requested.emit()
+	else:
+		print("[controller] combo de salida")
+		quit_requested.emit()
+	return true
+
+
+# Los cuatro botones mandan sobre B3+B4: así el combo de salida no guarda de paso.
+func _current_combo() -> int:
+	var btn1 := Input.is_action_pressed(Config.ACTION_BTN1)
+	var btn2 := Input.is_action_pressed(Config.ACTION_BTN2)
+	var btn3 := Input.is_action_pressed(Config.ACTION_BTN3)
+	var btn4 := Input.is_action_pressed(Config.ACTION_BTN4)
+	if btn1 and btn2 and btn3 and btn4:
+		return Config.COMBO_QUIT
+	if btn3 and btn4:
+		return Config.COMBO_SAVE
+	return Config.COMBO_NONE
+
+
+func _check_inactivity(now_msec: int) -> void:
+	if now_msec - _last_input_msec < Config.INACTIVITY_RESET_MSEC:
+		return
+	_last_input_msec = now_msec
+	print("[controller] reinicio por inactividad")
+	inactivity_reset.emit()
 
 
 func _plane_name(plane: int) -> String:

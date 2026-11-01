@@ -1,11 +1,12 @@
-# S1: registra el InputMap, crea el estado y los módulos, y conecta el cableado.
-# Depende de config.gd, state.gd, controller.gd y view.gd.
+# Registra el InputMap, crea el estado y los módulos, y conecta el cableado.
+# Depende de config.gd, state.gd, controller.gd, sequencer.gd, voice_pool.gd, saver.gd y view.gd.
 extends Node2D
 
 var _state: State
 var _sequencer: Sequencer
 var _voice_pool: VoicePool
 var _controller: Controller
+var _saver: Saver
 var _view: View
 
 
@@ -36,10 +37,40 @@ func _ready() -> void:
 	_controller.parameters_changed.connect(_voice_pool.apply_layer_parameters)
 	_controller.parameters_changed.connect(_voice_pool.play_cursor_preview)
 
+	# Después del voice_pool: la grabación toma la salida ya mezclada del bus Master.
+	_saver = Saver.new()
+	_saver.state = _state
+	add_child(_saver)
+	_controller.save_requested.connect(_on_save_requested)
+	_controller.quit_requested.connect(_on_quit_requested)
+	_controller.inactivity_reset.connect(_on_inactivity_reset)
+
 	_view = View.new()
 	_view.state = _state
 	_view.sequencer = _sequencer
 	add_child(_view)
+
+
+func _on_save_requested() -> void:
+	var piece_name := _saver.save_piece()
+	if piece_name.is_empty():
+		return
+	_state.saved_piece_name = piece_name
+	_state.save_message_until_msec = Time.get_ticks_msec() + int(Config.SAVE_MESSAGE_SECONDS * 1000.0)
+
+
+func _on_quit_requested() -> void:
+	print("[main] salida pedida con el combo de los cuatro botones")
+	get_tree().quit()
+
+
+func _on_inactivity_reset() -> void:
+	_state.reset_piece()
+	# Los buses siguen con los parámetros viejos hasta que se los vuelve a aplicar.
+	for layer: int in Config.LAYER_COUNT:
+		_voice_pool.apply_layer_parameters(layer)
+	_saver.restart_recording()
+	print("[main] pieza vacía: se reinicia la grabación")
 
 
 func _unhandled_input(event: InputEvent) -> void:

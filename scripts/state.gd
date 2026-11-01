@@ -12,6 +12,10 @@ var active_plane: int = Config.PARAMETER_PLANE_NONE
 var cursor_step: int = 0
 var cursor_row: int = 0
 
+# Último nombre guardado y hasta cuándo se muestra en pantalla.
+var saved_piece_name: String = ""
+var save_message_until_msec: int = 0
+
 
 class Layer:
 	extends RefCounted
@@ -25,10 +29,30 @@ class Layer:
 	var attack_seconds: float = Config.ATTACK_DEFAULT_SECONDS
 	var decay_seconds: float = Config.DECAY_DEFAULT_SECONDS
 
+	func reset() -> void:
+		notes.clear()
+		cutoff_hz = Config.CUTOFF_MAX_HZ
+		reverb_wet = Config.REVERB_DEFAULT_WET
+		attack_seconds = Config.ATTACK_DEFAULT_SECONDS
+		decay_seconds = Config.DECAY_DEFAULT_SECONDS
+
 
 func _init() -> void:
 	for _layer_index: int in Config.LAYER_COUNT:
 		layers.append(Layer.new())
+
+
+# Vuelve a una pieza vacía, con los parámetros por defecto (reinicio por inactividad).
+func reset_piece() -> void:
+	for layer: Layer in layers:
+		layer.reset()
+	active_layer_index = 0
+	show_all_layers = false
+	active_plane = Config.PARAMETER_PLANE_NONE
+	cursor_step = 0
+	cursor_row = 0
+	saved_piece_name = ""
+	save_message_until_msec = 0
 
 
 func get_active_layer() -> Layer:
