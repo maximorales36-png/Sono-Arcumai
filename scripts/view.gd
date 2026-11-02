@@ -33,6 +33,7 @@ func _draw() -> void:
 	_draw_cursor(grid_rect, cell_size)
 	_draw_parameter_pad()
 	_draw_fx_panels()
+	_draw_gesture_indicators()
 	_draw_save_message()
 
 
@@ -209,6 +210,39 @@ func _draw_fx_panel(panel_rect: Rect2, unit: State.FxUnit, color: Color) -> void
 		color,
 		Config.FX_SPEED_MARKER_WIDTH
 	)
+
+
+# Gesto grabado: "REC" con el tiempo que falta arriba al centro y barra del borrado abajo al centro.
+func _draw_gesture_indicators() -> void:
+	if state.gesture_is_recording:
+		_draw_rec_indicator()
+	if state.gesture_clear_ratio > 0.0:
+		_draw_clear_bar()
+
+
+func _draw_rec_indicator() -> void:
+	var font := ThemeDB.fallback_font
+	var font_size := Config.GESTURE_REC_FONT_SIZE
+	var text := "REC %.1f" % state.gesture_remaining_seconds
+	var text_size := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
+	var view_size := get_viewport_rect().size
+	var baseline := Vector2(
+		(view_size.x - text_size.x) * 0.5,
+		(Config.GRID_MARGIN + font.get_ascent(font_size)) * 0.5
+	)
+	draw_string(font, baseline, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Config.GESTURE_REC_COLOR)
+
+
+func _draw_clear_bar() -> void:
+	var bar_size := Vector2(Config.GESTURE_CLEAR_BAR_WIDTH, Config.GESTURE_CLEAR_BAR_HEIGHT)
+	var view_size := get_viewport_rect().size
+	var bar_position := Vector2(
+		(view_size.x - bar_size.x) * 0.5,
+		view_size.y - Config.GESTURE_CLEAR_BAR_MARGIN - bar_size.y
+	)
+	draw_rect(Rect2(bar_position, bar_size), Config.PARAMETER_TRACK_COLOR)
+	var filled := Vector2(bar_size.x * clampf(state.gesture_clear_ratio, 0.0, 1.0), bar_size.y)
+	draw_rect(Rect2(bar_position, filled), Config.GESTURE_REC_COLOR)
 
 
 func _draw_pad(horizontal: float, vertical: float, dot_color: Color) -> void:

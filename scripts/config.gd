@@ -173,15 +173,18 @@ const PARAMETER_TRACK_COLOR := Color(0.20, 0.20, 0.26)
 # Carpeta de las piezas. Con el directorio de usuario propio, en Linux queda en
 # ~/.local/share/arcumai/piezas y en Windows en %APPDATA%\arcumai\piezas.
 const SAVE_DIR := "user://piezas"
-const SAVE_FORMAT_VERSION := 1
+# Versión 2: agrega el gesto grabado al JSON.
+const SAVE_FORMAT_VERSION := 2
 
 # Tope de grabación por pieza: 8 minutos, unos 92 MB en RAM (48 kHz estéreo 16 bits).
 const RECORDING_MAX_SECONDS := 480.0
 
-# Combos: B3 + B4 guardan, los cuatro botones salen.
+# Combos: B3 + B4 guardan, los cuatro botones salen, B2 + B3 graba el gesto y B2 + B4 lo borra.
 const COMBO_NONE := 0
 const COMBO_SAVE := 1
 const COMBO_QUIT := 2
+const COMBO_GESTURE_RECORD := 3
+const COMBO_GESTURE_CLEAR := 4
 const SAVE_COMBO_MSEC := 2000
 const QUIT_COMBO_MSEC := 5000
 
@@ -232,6 +235,27 @@ const TREMOLO_RATE_FAST_HZ := 12.0
 
 # Ganancia lineal que se usa como silencio al pasar niveles a dB.
 const SILENT_GAIN := 0.0001
+
+# --- Gesto grabado (S-FX fase 2) ---
+
+# Máscara de direcciones de un evento del gesto. Se guarda como [tiempo, máscara].
+const GESTURE_DIR_UP := 1
+const GESTURE_DIR_DOWN := 2
+const GESTURE_DIR_LEFT := 4
+const GESTURE_DIR_RIGHT := 8
+
+# La grabación dura lo que se mantiene el combo, entre estos dos valores.
+const GESTURE_MAX_SECONDS := 5.0
+const GESTURE_MIN_SECONDS := 1.0
+# B2 + B4 mantenidos este tiempo borran el gesto guardado.
+const GESTURE_CLEAR_MSEC := 2000
+
+# Indicador de grabación (arriba al centro) y barra de progreso del borrado (abajo al centro).
+const GESTURE_REC_COLOR := Color(0.95, 0.35, 0.35)
+const GESTURE_REC_FONT_SIZE := 22
+const GESTURE_CLEAR_BAR_WIDTH := 160.0
+const GESTURE_CLEAR_BAR_HEIGHT := 8.0
+const GESTURE_CLEAR_BAR_MARGIN := 40.0
 
 # Indicadores de la vista general: un panel por efecto, con barra de wet y marcador de speed.
 const FX_PANEL_WIDTH := 150.0

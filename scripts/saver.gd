@@ -125,6 +125,17 @@ func _state_as_dictionary(piece_name: String) -> Dictionary:
 		"grid_bottom_midi": Config.GRID_BOTTOM_MIDI,
 		"tempo_scale": Config.TEMPO_SCALE,
 		"layers": layers_data,
+		"gesture": _gesture_as_dictionary(),
+	}
+
+
+# Gesto grabado: duración del bucle y eventos [tiempo, máscara]. {} si no hay gesto.
+func _gesture_as_dictionary() -> Dictionary:
+	if state.gesture == null:
+		return {}
+	return {
+		"duration": state.gesture.duration_seconds,
+		"events": state.gesture.events,
 	}
 
 

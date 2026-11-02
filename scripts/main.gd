@@ -5,6 +5,8 @@ extends Node2D
 
 var _state: State
 var _fx_drive: FxDrive
+var _recorded_fx_drive: FxDrive
+var _gesture_drive: GestureDrive
 var _sequencer: Sequencer
 var _voice_pool: VoicePool
 var _global_fx: GlobalFx
@@ -24,9 +26,18 @@ func _ready() -> void:
 
 	_state = State.new()
 
-	# Lógica de los efectos en vivo. En la fase 2 va a haber una segunda instancia, para el gesto grabado.
+	# Dos instancias de la misma lógica: el joystick real y el gesto grabado.
+	# La del joystick real apunta al set grabado cuando el efecto no está mantenido.
 	_fx_drive = FxDrive.new()
 	_fx_drive.fx = _state.live_fx
+	_fx_drive.fallback = _state.gesture_fx
+
+	_recorded_fx_drive = FxDrive.new()
+	_recorded_fx_drive.fx = _state.gesture_fx
+
+	_gesture_drive = GestureDrive.new()
+	_gesture_drive.state = _state
+	_gesture_drive.fx_drive = _recorded_fx_drive
 
 	_sequencer = Sequencer.new()
 	add_child(_sequencer)
@@ -44,6 +55,7 @@ func _ready() -> void:
 	_controller = Controller.new()
 	_controller.state = _state
 	_controller.fx_drive = _fx_drive
+	_controller.gesture_drive = _gesture_drive
 	add_child(_controller)
 	_controller.layer_changed.connect(_voice_pool.play_cursor_preview)
 	# Primero el bus, después la nota: la vista previa suena ya con el parámetro nuevo.

@@ -18,6 +18,17 @@ var save_message_until_msec: int = 0
 
 # Efectos globales de la vista general (S-FX): estado del joystick en vivo.
 var live_fx: FxSet = FxSet.new()
+# Mismo par de efectos, alimentado por el gesto grabado. El vivo lo usa como destino
+# cuando el efecto no está mantenido con el joystick real.
+var gesture_fx: FxSet = FxSet.new()
+
+# Gesto grabado: null si no hay ninguno.
+var gesture: Gesture = null
+
+# Indicadores en pantalla del gesto.
+var gesture_is_recording: bool = false
+var gesture_remaining_seconds: float = 0.0
+var gesture_clear_ratio: float = 0.0
 
 
 class Layer:
@@ -52,7 +63,7 @@ class FxUnit:
 		speed = 0.0
 
 
-# Los dos efectos globales juntos. En la fase 2 va a haber un set en vivo y otro grabado.
+# Los dos efectos globales juntos: uno en vivo y otro para el gesto grabado.
 class FxSet:
 	extends RefCounted
 
@@ -62,6 +73,15 @@ class FxSet:
 	func reset() -> void:
 		delay.reset()
 		tremolo.reset()
+
+
+# Gesto grabado del joystick: duración del bucle y cambios de dirección.
+# Cada evento es [tiempo_en_segundos, máscara Config.GESTURE_DIR_*].
+class Gesture:
+	extends RefCounted
+
+	var duration_seconds: float = 0.0
+	var events: Array[Array] = []
 
 
 func _init() -> void:
@@ -81,6 +101,11 @@ func reset_piece() -> void:
 	saved_piece_name = ""
 	save_message_until_msec = 0
 	live_fx.reset()
+	gesture_fx.reset()
+	gesture = null
+	gesture_is_recording = false
+	gesture_remaining_seconds = 0.0
+	gesture_clear_ratio = 0.0
 
 
 func get_active_layer() -> Layer:

@@ -1,7 +1,7 @@
 # Lee las acciones del InputMap, mueve el cursor (con repetición al mantener), asienta o borra notas,
 # cambia de capa y, con B3 o B4 apretados, mueve el timbre o la envolvente de la capa activa. En la
-# vista general (todas las capas) el joystick maneja los efectos globales a través de FxDrive.
-# Depende de config.gd, state.gd y fx_drive.gd: main.gd le asigna el State y el FxDrive antes de agregarlo.
+# vista general (todas las capas) el joystick maneja los efectos globales a través de FxDrive, y los
+# combos con B2 graban o borran el gesto. Depende de config.gd, state.gd, fx_drive.gd y gesture_drive.gd.
 class_name Controller
 extends Node
 
@@ -13,6 +13,7 @@ signal inactivity_reset
 
 var state: State
 var fx_drive: FxDrive
+var gesture_drive: GestureDrive
 
 # Próximo instante (ms) en que cada dirección vuelve a repetir.
 var _repeat_at_msec: Dictionary[StringName, int] = {}
@@ -22,6 +23,9 @@ var _combo_kind: int = Config.COMBO_NONE
 var _combo_start_msec: int = 0
 var _combo_fired: bool = false
 
+# B2 solo cambia de vista al soltarlo, y solo si no se usó en un combo.
+var _b2_used_in_combo: bool = false
+
 # Última entrada del jugador, para el reinicio por inactividad.
 var _last_input_msec: int = 0
 
@@ -29,6 +33,7 @@ var _last_input_msec: int = 0
 func _ready() -> void:
 	assert(state != null, "[controller] falta el State: main.gd tiene que asignarlo antes de agregar el nodo")
 	assert(fx_drive != null, "[controller] falta el FxDrive: main.gd tiene que asignarlo antes de agregar el nodo")
+	assert(gesture_drive != null, "[controller] falta el GestureDrive: main.gd tiene que asignarlo antes de agregar el nodo")
 	_last_input_msec = Time.get_ticks_msec()
 
 
@@ -38,32 +43,40 @@ func _input(_event: InputEvent) -> void:
 
 func _process(delta: float) -> void:
 	var now_msec := Time.get_ticks_msec()
+	var now_usec := Time.get_ticks_usec()
 	if Input.is_anything_pressed():
 		_last_input_msec = now_msec
 	_check_inactivity(now_msec)
 
-	# Los combos mandan sobre el resto: mientras uno está en curso, nada más responde.
-	if _update_combos(now_msec):
-		fx_drive.update(false, false, false, false, delta)
+	var up := Input.is_action_pressed(Config.ACTION_MOVE_UP)
+	var down := Input.is_action_pressed(Config.ACTION_MOVE_DOWN)
+	var left := Input.is_action_pressed(Config.ACTION_MOVE_LEFT)
+	var right := Input.is_action_pressed(Config.ACTION_MOVE_RIGHT)
+
+	if Input.is_action_just_pressed(Config.ACTION_BTN2):
+		_b2_used_in_combo = false
+
+	# El gesto se graba con el joystick crudo (en cualquier vista) y se reproduce siempre.
+	var combo := _update_combos(now_msec, now_usec, up, down, left, right)
+	if combo == Config.COMBO_NONE:
+		_update_plane()
+	gesture_drive.update(delta, now_usec, up, down, left, right)
+
+	# Los efectos en vivo solo existen en la vista general; el gesto grabado se suma en todas.
+	var effects_here := state.show_all_layers
+	fx_drive.update(
+		up and effects_here, down and effects_here, left and effects_here, right and effects_here, delta
+	)
+
+	_handle_b2_release()
+
+	# Mientras dura un combo, nada más responde.
+	if combo != Config.COMBO_NONE:
 		return
 
-	_update_plane()
-
-	# Vista general: el joystick maneja los efectos globales, B1 y B3/B4 no hacen nada y B2 sale.
+	# Vista general: el joystick maneja los efectos, B1 y B3/B4 no hacen nada y B2 sale al soltarlo.
 	if state.show_all_layers:
-		fx_drive.update(
-			Input.is_action_pressed(Config.ACTION_MOVE_UP),
-			Input.is_action_pressed(Config.ACTION_MOVE_DOWN),
-			Input.is_action_pressed(Config.ACTION_MOVE_LEFT),
-			Input.is_action_pressed(Config.ACTION_MOVE_RIGHT),
-			delta
-		)
-		if Input.is_action_just_pressed(Config.ACTION_BTN2):
-			_select_next_layer()
 		return
-
-	# Fuera de la vista general no hay efectos en vivo: lo que suene, vuelve al reposo.
-	fx_drive.update(false, false, false, false, delta)
 
 	# Con B3 o B4 apretados, el joystick mueve parámetros y el cursor no se mueve.
 	if state.active_plane == Config.PARAMETER_PLANE_TIMBRE:
@@ -81,9 +94,6 @@ func _process(delta: float) -> void:
 	if Input.is_action_just_pressed(Config.ACTION_BTN1):
 		_toggle_note()
 
-	if Input.is_action_just_pressed(Config.ACTION_BTN2):
-		_select_next_layer()
-
 
 func _update_plane() -> void:
 	var new_plane: int = Config.PARAMETER_PLANE_NONE
@@ -98,35 +108,56 @@ func _update_plane() -> void:
 	print("[controller] modo %s" % _plane_name(new_plane))
 
 
-# Devuelve true mientras hay un combo en curso (B3+B4 para guardar, los cuatro para salir).
-func _update_combos(now_msec: int) -> bool:
+# Devuelve el combo en curso (o COMBO_NONE). Los de B2 se marcan para que B2 no cambie de vista.
+func _update_combos(
+	now_msec: int, now_usec: int, up: bool, down: bool, left: bool, right: bool
+) -> int:
 	var kind := _current_combo()
-	if kind == Config.COMBO_NONE:
-		_combo_kind = Config.COMBO_NONE
-		return false
-
-	# Mientras se mantiene el combo no se mueve nada más ni se muestra el indicador.
-	state.active_plane = Config.PARAMETER_PLANE_NONE
 	if kind != _combo_kind:
+		_end_combo(_combo_kind, now_usec)
 		_combo_kind = kind
 		_combo_start_msec = now_msec
 		_combo_fired = false
+		_start_combo(kind, now_usec, up, down, left, right)
 
-	var needed_msec := Config.SAVE_COMBO_MSEC if kind == Config.COMBO_SAVE else Config.QUIT_COMBO_MSEC
+	if kind == Config.COMBO_NONE:
+		state.gesture_clear_ratio = 0.0
+		return Config.COMBO_NONE
+
+	# Mientras se mantiene el combo no se mueve nada más ni se muestra el indicador de B3/B4.
+	state.active_plane = Config.PARAMETER_PLANE_NONE
+	if Input.is_action_pressed(Config.ACTION_BTN2):
+		_b2_used_in_combo = true
+
+	if kind == Config.COMBO_GESTURE_CLEAR and not _combo_fired:
+		state.gesture_clear_ratio = minf(
+			float(now_msec - _combo_start_msec) / float(Config.GESTURE_CLEAR_MSEC), 1.0
+		)
+
+	# La grabación la cierra GestureDrive (al soltar o al llegar al máximo); acá no se dispara nada.
+	if kind == Config.COMBO_GESTURE_RECORD:
+		return kind
+
+	var needed_msec := _combo_needed_msec(kind)
 	if _combo_fired or now_msec - _combo_start_msec < needed_msec:
-		return true
+		return kind
 
 	_combo_fired = true
-	if kind == Config.COMBO_SAVE:
-		print("[controller] combo de guardado")
-		save_requested.emit()
-	else:
-		print("[controller] combo de salida")
-		quit_requested.emit()
-	return true
+	match kind:
+		Config.COMBO_SAVE:
+			print("[controller] combo de guardado")
+			save_requested.emit()
+		Config.COMBO_QUIT:
+			print("[controller] combo de salida")
+			quit_requested.emit()
+		Config.COMBO_GESTURE_CLEAR:
+			gesture_drive.clear_gesture()
+			state.gesture_clear_ratio = 0.0
+	return kind
 
 
-# Los cuatro botones mandan sobre B3+B4: así el combo de salida no guarda de paso.
+# Los cuatro botones mandan sobre el resto: así el combo de salida no guarda de paso.
+# B2+B3 graba y B2+B4 borra; si se aprietan B3 y B4 a la vez gana la grabación.
 func _current_combo() -> int:
 	var btn1 := Input.is_action_pressed(Config.ACTION_BTN1)
 	var btn2 := Input.is_action_pressed(Config.ACTION_BTN2)
@@ -134,9 +165,50 @@ func _current_combo() -> int:
 	var btn4 := Input.is_action_pressed(Config.ACTION_BTN4)
 	if btn1 and btn2 and btn3 and btn4:
 		return Config.COMBO_QUIT
+	if btn2 and btn3:
+		return Config.COMBO_GESTURE_RECORD
+	if btn2 and btn4:
+		return Config.COMBO_GESTURE_CLEAR
 	if btn3 and btn4:
 		return Config.COMBO_SAVE
 	return Config.COMBO_NONE
+
+
+func _combo_needed_msec(kind: int) -> int:
+	match kind:
+		Config.COMBO_SAVE:
+			return Config.SAVE_COMBO_MSEC
+		Config.COMBO_QUIT:
+			return Config.QUIT_COMBO_MSEC
+		Config.COMBO_GESTURE_CLEAR:
+			return Config.GESTURE_CLEAR_MSEC
+		_:
+			return 0
+
+
+func _start_combo(
+	kind: int, now_usec: int, up: bool, down: bool, left: bool, right: bool
+) -> void:
+	if kind == Config.COMBO_GESTURE_RECORD:
+		gesture_drive.start_recording(now_usec, up, down, left, right)
+
+
+func _end_combo(kind: int, now_usec: int) -> void:
+	if kind == Config.COMBO_GESTURE_RECORD:
+		gesture_drive.finish_recording(now_usec)
+	if kind == Config.COMBO_GESTURE_CLEAR:
+		state.gesture_clear_ratio = 0.0
+
+
+func _handle_b2_release() -> void:
+	if not Input.is_action_just_released(Config.ACTION_BTN2):
+		return
+	var used_in_combo := _b2_used_in_combo
+	_b2_used_in_combo = false
+	# Si B2 se usó en un combo, soltarlo no cambia de vista.
+	if used_in_combo:
+		return
+	_select_next_layer()
 
 
 func _check_inactivity(now_msec: int) -> void:
