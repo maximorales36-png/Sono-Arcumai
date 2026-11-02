@@ -103,6 +103,8 @@ Cada capa guarda sus propios parámetros de timbre y envolvente.
 - **Indicadores de efectos**: en la vista general, abajo a la derecha, dos paneles: delay arriba y trémolo abajo.
   Cada uno tiene una barra de wet (vacía en reposo) y un marcador de speed (centro = 0, izquierda = lento,
   derecha = rápido). Se dibujan con `_draw()`.
+- **Indicadores del gesto**: mientras se graba, "REC" con el tiempo restante arriba al centro. Al mantener B2 + B4,
+  una barra de progreso del borrado abajo al centro. Se dibujan con `_draw()` y valen en cualquier vista.
 - Nada de texto salvo el nombre de la pieza al guardar y los indicadores de B3/B4 mientras están apretados.
 - Mouse oculto. Pantalla completa.
 
@@ -127,15 +129,25 @@ enseguida. Valores en `config.gd`: wet 0 a 1 en 3 s, speed de centro a extremo e
 Delay: −1 = 900 ms, 0 = 400 ms, +1 = 120 ms (interpolación geométrica), feedback fijo ~40 %. Trémolo:
 −1 = 0.5 Hz, 0 = 3 Hz, +1 = 12 Hz.
 
-**Fase 1 (implementada en esta sesión):** efectos en vivo con el joystick, tal como describe la tabla.
+**Fase 1 (implementada):** efectos en vivo con el joystick, tal como describe la tabla.
 
-**Fase 2 (pendiente):** grabar el gesto. B2 + B3 mantenidos registran los cambios de dirección del joystick con su
-tiempo (máximo `GESTURE_MAX_SECONDS` = 5 s; menos de 1 s cancela la grabación y no reemplaza el gesto anterior).
-Al terminar, el gesto se repite en bucle alimentando un segundo joystick virtual hacia la misma lógica de efectos
-(una clase, dos instancias). Por efecto, si el joystick real lo mantiene activo manda el valor en vivo; si no,
-manda el grabado, y el retorno al reposo apunta al valor grabado. B2 + B4 mantenidos 2 s borran el gesto.
-B2 cambia de vista al soltarlo y solo si no se usó en un combo. El gesto se guarda en el JSON y se pierde con el
-reinicio por inactividad.
+**Fase 2 (implementada):** grabar el gesto.
+
+- **Grabar**: B2 + B3 mantenidos. Se registran los cambios de dirección del joystick con su tiempo desde que se
+  aprietan los dos botones, en cualquier vista. La grabación dura lo que se mantienen los botones, con máximo
+  `GESTURE_MAX_SECONDS` (5 s): al llegar al máximo corta sola. Mínimo `GESTURE_MIN_SECONDS` (1 s): si se suelta
+  antes, se cancela y no reemplaza el gesto anterior. Mientras se graba, "REC" con el tiempo restante arriba al centro.
+- **Reproducir**: al terminar la grabación, el gesto se repite en bucle con su propia duración (la que duró la
+  grabación) y suena en todas las vistas. Alimenta una segunda instancia de la misma lógica de efectos
+  (`FxDrive`), con su propio `FxSet`.
+- **Combinar**: por efecto, si el joystick real mantiene activa su dirección vertical mandan los valores en vivo;
+  si no, wet y speed vuelven suavemente (en `FX_REST_SECONDS`) hacia el valor grabado. Sin gesto, el destino es el
+  reposo de siempre.
+- **Regrabar** reemplaza el gesto anterior. **Borrar**: B2 + B4 mantenidos `GESTURE_CLEAR_MSEC` (2 s), con una barra
+  de progreso abajo al centro. B2 cambia de vista al soltarlo, y solo si no se usó en un combo.
+- El gesto se guarda en el JSON como `{"duration": ..., "events": [[tiempo, máscara], ...]}` (máscara: 1 arriba,
+  2 abajo, 4 izquierda, 8 derecha) y se pierde con el reinicio por inactividad.
+- Prioridad de combos: los cuatro botones (salir) > B2 + B3 (grabar) > B2 + B4 (borrar) > B3 + B4 (guardar).
 
 ## Después (NO implementar sin pedido explícito)
 
