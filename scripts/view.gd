@@ -1,6 +1,6 @@
-# Dibuja la grilla, las notas de la capa activa, las líneas de barrido, el cursor parpadeante
-# y el cartel con el nombre de la pieza guardada. Solo lee el estado: no lo modifica.
-# Depende de config.gd, state.gd y sequencer.gd.
+# Dibuja la grilla, las notas de la capa activa, las líneas de barrido, el cursor parpadeante,
+# los indicadores de parámetros y efectos globales, y el cartel con el nombre de la pieza guardada.
+# Solo lee el estado: no lo modifica. Depende de config.gd, state.gd y sequencer.gd.
 class_name View
 extends Node2D
 
@@ -32,6 +32,7 @@ func _draw() -> void:
 	_draw_notes(grid_rect, cell_size)
 	_draw_cursor(grid_rect, cell_size)
 	_draw_parameter_pad()
+	_draw_global_fx_pad()
 	_draw_save_message()
 
 
@@ -161,7 +162,31 @@ func _draw_parameter_pad() -> void:
 	else:
 		horizontal = _ratio(layer.attack_seconds, Config.ATTACK_MIN_SECONDS, Config.ATTACK_MAX_SECONDS)
 		vertical = _ratio(layer.decay_seconds, Config.DECAY_MIN_SECONDS, Config.DECAY_MAX_SECONDS)
+	_draw_pad(horizontal, vertical, Config.LAYER_COLORS[state.active_layer_index])
 
+
+# Vista de todas las capas: el mismo cuadrado muestra el efecto global mientras se escucha.
+# Delay: X = tiempo, Y = feedback. Tremolo: Y = profundidad.
+func _draw_global_fx_pad() -> void:
+	if not state.show_all_layers:
+		return
+	if state.delay_wet > 0.0:
+		_draw_pad(
+			_log_ratio(
+				state.delay_time_seconds, Config.DELAY_TIME_MIN_SECONDS, Config.DELAY_TIME_MAX_SECONDS
+			),
+			_ratio(state.delay_feedback, Config.DELAY_FEEDBACK_DEFAULT, Config.DELAY_FEEDBACK_MAX),
+			Config.GLOBAL_FX_DELAY_COLOR
+		)
+	elif state.tremolo_depth > 0.0:
+		_draw_pad(
+			Config.GLOBAL_FX_TREMOLO_PAD_HORIZONTAL,
+			_ratio(state.tremolo_depth, 0.0, Config.TREMOLO_DEPTH_MAX),
+			Config.GLOBAL_FX_TREMOLO_COLOR
+		)
+
+
+func _draw_pad(horizontal: float, vertical: float, dot_color: Color) -> void:
 	var pad_size := Vector2.ONE * Config.PARAMETER_PAD_SIZE
 	var pad_rect := Rect2(
 		get_viewport_rect().size - Vector2.ONE * Config.PARAMETER_PAD_MARGIN - pad_size,
@@ -175,10 +200,9 @@ func _draw_parameter_pad() -> void:
 		horizontal * inner_size.x + dot_half,
 		(1.0 - vertical) * inner_size.y + dot_half
 	)
-	var layer_color: Color = Config.LAYER_COLORS[state.active_layer_index]
 	draw_rect(
 		Rect2(dot_center - Vector2.ONE * dot_half, Vector2.ONE * Config.PARAMETER_PAD_DOT_SIZE),
-		layer_color
+		dot_color
 	)
 
 

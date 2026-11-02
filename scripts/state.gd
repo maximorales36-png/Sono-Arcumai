@@ -16,6 +16,15 @@ var cursor_row: int = 0
 var saved_piece_name: String = ""
 var save_message_until_msec: int = 0
 
+# Efectos globales de la vista de todas las capas (S5b). `fx_mode` es lo que pide el joystick;
+# `delay_wet` y `tremolo_depth` son los valores que están sonando y se desvanecen solos.
+var fx_mode: int = Config.GLOBAL_FX_NONE
+var delay_time_seconds: float = Config.DELAY_TIME_DEFAULT_SECONDS
+var delay_feedback: float = Config.DELAY_FEEDBACK_DEFAULT
+var delay_wet: float = 0.0
+var tremolo_depth_setting: float = Config.TREMOLO_DEPTH_DEFAULT
+var tremolo_depth: float = 0.0
+
 
 class Layer:
 	extends RefCounted
@@ -53,6 +62,12 @@ func reset_piece() -> void:
 	cursor_row = 0
 	saved_piece_name = ""
 	save_message_until_msec = 0
+	fx_mode = Config.GLOBAL_FX_NONE
+	delay_time_seconds = Config.DELAY_TIME_DEFAULT_SECONDS
+	delay_feedback = Config.DELAY_FEEDBACK_DEFAULT
+	delay_wet = 0.0
+	tremolo_depth_setting = Config.TREMOLO_DEPTH_DEFAULT
+	tremolo_depth = 0.0
 
 
 func get_active_layer() -> Layer:

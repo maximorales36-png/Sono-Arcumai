@@ -1,10 +1,12 @@
 # Registra el InputMap, crea el estado y los módulos, y conecta el cableado.
-# Depende de config.gd, state.gd, controller.gd, sequencer.gd, voice_pool.gd, saver.gd y view.gd.
+# Depende de config.gd, state.gd, controller.gd, sequencer.gd, voice_pool.gd, global_fx.gd,
+# saver.gd y view.gd.
 extends Node2D
 
 var _state: State
 var _sequencer: Sequencer
 var _voice_pool: VoicePool
+var _global_fx: GlobalFx
 var _controller: Controller
 var _saver: Saver
 var _view: View
@@ -28,6 +30,11 @@ func _ready() -> void:
 	_voice_pool.state = _state
 	add_child(_voice_pool)
 	_sequencer.step_entered.connect(_voice_pool.play_step)
+
+	# Después del voice_pool: crea el bus común "fx" y manda ahí las cuatro capas.
+	_global_fx = GlobalFx.new()
+	_global_fx.state = _state
+	add_child(_global_fx)
 
 	_controller = Controller.new()
 	_controller.state = _state

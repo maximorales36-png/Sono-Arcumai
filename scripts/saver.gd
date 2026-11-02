@@ -15,7 +15,7 @@ var _recording_start_usec: int
 
 func _ready() -> void:
 	assert(state != null, "[saver] falta el State: main.gd tiene que asignarlo antes de agregar el nodo")
-	_master_index = AudioServer.get_bus_index("Master")
+	_master_index = AudioServer.get_bus_index(Config.MASTER_BUS_NAME)
 	assert(_master_index >= 0, "[saver] no existe el bus Master")
 	_start_recording()
 
