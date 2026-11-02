@@ -11,7 +11,9 @@ Mantenerlo corto: reemplazar lo viejo, no acumular.
 - S5: la sesión se graba desde el arranque (tope de 8 min); B3 + B4 mantenidos 2 s guardan JSON + WAV en
   `user://piezas` y muestran el nombre 4 s; los 4 botones 5 s cierran la aplicación; a los 5 min sin input la pieza
   se vacía y la grabación se reinicia.
-- Bloqueado antes de S6: S0b en el arcade, la entrega de los samples reales y la prueba de S5 por parte de Maxi.
+- S5b: en la vista de todas las capas el joystick maneja efectos globales: arriba enciende el delay (feedback creciente
+  al mantener, izquierda/derecha el tiempo) y abajo el tremolo (profundidad creciente). Al soltar, se desvanecen.
+- Bloqueado antes de S6: S0b en el arcade, la entrega de los samples reales y la prueba de S5/S5b por parte de Maxi.
   El arranque automático quedó fuera de alcance (la mini PC ya abre un menú de juegos).
 
 ## Datos a confirmar (Maxi)
@@ -38,20 +40,22 @@ Mantenerlo corto: reemplazar lo viejo, no acumular.
 - `export_presets.cfg`: preset `Linux` (x86_64, pck embebido), salida `build/arcumai.x86_64`.
   Export verificado: ELF x86_64 de 70 MB. Falta probarlo en el arcade (S0b).
 - `scenes/main.tscn`: un único nodo raíz con `scripts/main.gd`.
-- `scripts/main.gd`: registra el InputMap en `_enter_tree`, crea `State`, `Sequencer`, `VoicePool`, `Controller`,
-  `Saver` y `View`, conecta `step_entered` y los pedidos de guardar, salir y reiniciar; al reiniciar por inactividad
-  vuelve a aplicar los parámetros a los cuatro buses. Oculta el mouse; Esc cierra solo en builds de debug.
+- `scripts/main.gd`: registra el InputMap en `_enter_tree`, crea `State`, `Sequencer`, `VoicePool`, `GlobalFx`,
+  `Controller`, `Saver` y `View`, conecta `step_entered` y los pedidos de guardar, salir y reiniciar; al reiniciar
+  por inactividad vuelve a aplicar los parámetros a los cuatro buses. Oculta el mouse; Esc cierra solo en builds
+  de debug.
 - `scripts/config.gd`: acciones y mapeos, grilla (16x10, 4 capas), tiempos del cursor, colores por capa, períodos por
   capa con `TEMPO_SCALE` global, escala pentatónica menor de 10 grados, dos samples por capa (grave/agudo) con su
   nota raíz, corte de zona, volumen, rangos de timbre/envolvente (S4) y parámetros de sesión (S5: carpeta, tope de
   grabación, tiempos de los combos, inactividad, palabras del nombre, cartel).
 - `scripts/state.gd`: `State` y `State.Layer` (notas como conjunto de celdas `Vector2i`), parámetros de timbre y
   envolvente por capa, cursor, `active_plane`, `toggle_note`, nombre de la última pieza guardada con su vencimiento,
-  `reset_piece()` y `Layer.reset()`.
+  `reset_piece()` y `Layer.reset()`, y los parámetros de los efectos globales (modo, tiempo, feedback, wet, profundidad).
 - `scripts/controller.gd`: cursor con repetición propia (250 ms inicial, 80 ms después), `btn1` alterna nota,
   `btn2` pasa a la capa siguiente (circular) y emite `layer_changed`; con `btn3`/`btn4` apretados el joystick mueve
   cutoff/reverb o ataque/decay de la capa activa y emite `parameters_changed`, sin mover el cursor. Detecta los
   combos de guardado y salida (`save_requested`, `quit_requested`) y el tiempo sin input (`inactivity_reset`).
+  En la vista de todas las capas maneja el modo de los efectos globales en `State.fx_mode`.
 - `scripts/sequencer.gd`: fase por capa calculada desde el origen con su período y `TEMPO_SCALE`;
   `step_entered(layer, step)` al cambiar de paso.
 - `scripts/voice_pool.gd`: un pool por capa y zona (4 x 2 x 8 voces = 64 reproductores), un bus por capa
@@ -62,10 +66,14 @@ Mantenerlo corto: reemplazar lo viejo, no acumular.
 - `scripts/saver.gd`: `AudioEffectRecord` en el bus Master, grabación desde el arranque con tope de 8 min, WAV y
   JSON en la carpeta de piezas al guardar (y grabación nueva después de guardar), nombre de dos palabras y dos
   dígitos sin pisar una pieza existente, `restart_recording()` para el reinicio por inactividad.
+- `scripts/global_fx.gd`: crea el bus común `fx`, manda ahí los cuatro buses de capa, y aplica cada frame el delay
+  (`AudioEffectDelay`, wet fijo 0.4, feedback y tiempo desde el `State`) y el tremolo (`AudioEffectAmplify` con una
+  LFO de amplitud a 4 Hz), con entrada rápida y desvanecido lento.
 - `scripts/view.gd`: grilla, notas de la capa activa (o de las 4 en la vista de todas, con las celdas compartidas
   partidas en franjas por capa), una línea de barrido por capa (la activa más gruesa y encima), cursor con contorno
   parpadeante (600 ms) que desaparece en la vista de todas, cuadrado con punto (abajo a la derecha) mientras
-  B3 o B4 están apretados y el cartel "guardado: nombre" arriba al centro por 4 s.
+  B3 o B4 están apretados (o mientras suena un efecto global, con su color) y el cartel "guardado: nombre" arriba
+  al centro por 4 s.
 - `tools/make_placeholder_wav.gd` y `assets/samples/layer_N_low.wav` / `layer_N_high.wav` (N = 1…4):
   senos con decay, 2 s, mono, 44.1 kHz, raíz MIDI 57 el grave y 69 el agudo, con armónicos distintos por capa
   para distinguirlas de oído.
@@ -87,6 +95,13 @@ Mantenerlo corto: reemplazar lo viejo, no acumular.
   borra el nombre y devuelve el cutoff del bus a 12000 Hz; al simular el tope de 8 min la grabación se corta
   (`push_error`) y el guardado siguiente escribe JSON sin WAV y vuelve a grabar; el combo de los 4 botones a los 5 s
   cierra la aplicación.
+- Verificado en S5b: 6 buses (Master, 4 capas y `fx`); las 4 capas envían a `fx` y `fx` a Master, con pico medido en
+  Master de -8.3 dB (el audio llega); el bus `fx` tiene `AudioEffectDelay` + `AudioEffectAmplify`; con arriba
+  mantenido el feedback llegó a 0.75 (tap -8 dB, feedback -2.5 dB), el wet a 0.4 y el dry a 0.6; izquierda llevó el
+  tiempo de 300 a 525 ms y derecha lo devolvió a 300 ms; al soltar el wet llegó a 0, el dry a 1.0 y el tap a -80 dB;
+  con abajo el tremolo moduló el amplificador entre -12 y 0 dB; 1.7 s después de soltar, wet y profundidad en 0;
+  fuera de la vista el joystick mueve el cursor y el modo de efectos queda en ninguno; captura del indicador del delay
+  con el punto arriba (feedback máximo) y a la derecha del centro (tiempo 300 ms).
 
 ### Medición de tiempo (S2)
 
@@ -147,13 +162,30 @@ de lo esperado por período.
 - S5: la inactividad se mide con cualquier `InputEvent` y con cualquier acción apretada. Cualquier movimiento del
   joystick cuenta como actividad.
 - S5: el arranque automático quedó fuera de S5 por decisión de Maxi: la mini PC ya abre un menú de juegos.
+- S5b: las cuatro capas pasan por un bus común `fx` antes de Master. El delay y el tremolo viven ahí, así afectan
+  a todo por igual y el `AudioEffectRecord` de Master los graba. El envío `fx` → Master se fija explícito porque un
+  bus nuevo no lo trae.
+- S5b: el delay se apaga bajando el wet a 0 y **subiendo el dry a 1.0** al mismo tiempo. Si solo bajara el wet, el
+  instrumento quedaría 4 dB más bajo al desaparecer el efecto.
+- S5b: cada efecto entra en 0.2 s y se va en 1.5 s. El feedback, el tiempo y la profundidad quedan guardados entre
+  usos; solo el "wet" y la profundidad que suenan se desvanecen.
+- S5b: el tiempo del delay se mueve en proporción (×1.15), como el cutoff; izquierda alarga y derecha acorta
+  (decisión de Maxi). Izquierda/derecha solo responden con arriba apretado.
+- S5b: el tremolo es una LFO de amplitud hecha con un `AudioEffectAmplify` en el bus `fx`, con fase desde
+  `Time.get_ticks_usec()` (no se acumula `delta`). La velocidad es fija en 4 Hz; solo cambia la profundidad.
+- S5b: el efecto global no se guarda en el JSON (la pieza son las notas y los parámetros por capa); el WAV sí lo
+  contiene tal como se tocó.
 
 ## Propuestas de diseño
 
 Cambios que implican tocar `docs/DISENO.md`. El agente los anota acá; Maxi decide.
 Formato: qué se propone, por qué, y qué evidencia lo sostiene (por ejemplo, la prueba con una persona de S2).
 
-(vacío)
+- **Actualizar `DISENO.md` con S5b**: hoy dice que en la vista de todas las capas "el joystick no hace nada" y que
+  "es solo para mirar". Con S5b el joystick maneja el delay (arriba, con izquierda/derecha para el tiempo) y el
+  tremolo (abajo), y los dos se desvanecen al soltar. Propongo corregir ese párrafo y agregar los efectos globales
+  al bus `fx` en la sección Sonido. Código ya implementado y verificado.
+- **Actualizar la lista de scripts de `AGENTS.md`** con `scripts/global_fx.gd`.
 
 ## Pendientes
 
@@ -177,6 +209,14 @@ Formato: qué se propone, por qué, y qué evidencia lo sostiene (por ejemplo, l
 - Decidir si el combo de guardado (B3 + B4, 2 s) es cómodo, teniendo en cuenta que esos botones también mueven
   timbre y envolvente mientras se los mantiene apretados.
 - Decidir si el reinicio por inactividad tiene que avisar algo en pantalla: hoy la grilla se vacía sin cartel.
+- **S5b por Maxi**: en la vista de todas las capas, empujar el stick arriba (delay) y escuchar cómo el feedback crece
+  al mantener; con arriba + izquierda/derecha, escuchar el cambio de tiempo (con feedback alto aparece el warble
+  típico de cinta). Empujar abajo (tremolo) y escuchar la profundidad creciendo. Soltar y confirmar el desvanecido.
+  Definir si 4 Hz, el rango de tiempo (80–800 ms), el feedback máximo (0.75) y los tiempos de fade (0.2/1.5 s) quedan
+  cómodos.
+- Escuchar si el tremolo, modulado desde `_process` a 60 fps, suena escalonado a 4 Hz y con profundidad máxima.
+  Si molesta: bajar la velocidad, bajar la profundidad máxima o usar `AudioEffectChorus`.
+- Revisar el volumen general con el delay al 40 % de wet: el dry baja a 0.6 mientras el efecto está encendido.
 - Medir el pico de RAM al guardar una grabación de 8 minutos (~92 MB de audio en RAM, 48 kHz estéreo 16 bits,
   y al codificar el WAV se duplica un momento).
 - Si una pieza se toca más de 8 min seguidos, la grabación ya se cortó: al guardar queda solo el JSON. Decidir si
