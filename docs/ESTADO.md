@@ -15,7 +15,7 @@ Mantenerlo corto: reemplazar lo viejo, no acumular.
   globales. Arriba enciende el delay y sube su wet; arriba + izquierda/derecha mueven su speed (tiempo). Abajo hace
   lo mismo con el trémolo (profundidad y velocidad). Al soltar, wet y speed vuelven al reposo en 3 s. Dos paneles
   abajo a la derecha muestran wet y speed. B1 no hace nada ahí, B3/B4 solos tampoco, y el secuenciador sigue.
-- S-FX fase 2: B2 + B3 graban el gesto del joystick (entre 1 y 5 s); al soltar se repite en bucle en todas las
+- S-FX fase 2: B2 + B3 graban el gesto del joystick (entre 1 y 20 s); al soltar se repite en bucle en todas las
   vistas, con una segunda instancia de la lógica de efectos. Por efecto, el joystick real manda si mantiene su
   dirección vertical; si no, el vivo sigue el valor grabado. B2 + B4 (2 s) borran el gesto (con barra de progreso) y
   "REC" muestra el tiempo restante. B2 cambia de vista al soltarlo y solo si no se usó en un combo. El gesto va al JSON.
@@ -151,6 +151,10 @@ Mantenerlo corto: reemplazar lo viejo, no acumular.
   quedan en -80 dB, con la cola en -84 → -120 dB. Moviendo la palanca a la derecha con el delay a wet 1.00: el
   tiempo se queda en 250 ms mientras el speed sube 0.10 → 0.50 (antes cambiaba en cada frame); al soltar el costado,
   el tap baja a -14 dB, el tiempo pasa a 219 ms y el tap vuelve a 0 dB en ~150 ms.
+- Corregido en S-FX fase 2 (click que quedaba y gesto de 20 s): con el speed quieto 0.15 s la compuerta baja el tap
+  a -80 dB en 80 ms y recién ahí cambia el tiempo (tap 400 → 237 ms, feedback intacto en 400 ms) y vuelve en 80 ms;
+  al soltar todo, con wet 0, el feedback se resincroniza con el tap. Gesto: el combo B2 + B3 corta solo a los
+  20.00 s (restante 19.9 → 10.0 → 0.0), con 2 eventos registrados en la prueba.
 
 ### Medición de tiempo (S2)
 
@@ -228,8 +232,13 @@ de lo esperado por período.
 - S-FX: el tiempo del delay no se cambia mientras el speed se mueve. `AudioEffectDelay` lee el buffer sin
   interpolar (`int` del tiempo en frames), así que cada cambio salta la lectura y suena como un click; mover el
   tiempo en vivo daba un chisporroteo. Se aplica cuando el speed lleva `DELAY_TIME_SETTLE_SECONDS` quieto, con el
-  tap apagado `DELAY_TIME_DUCK_SECONDS` (por el dry, con `DELAY_TIME_FADE_SECONDS` de rampa) y después vuelve a
-  entrar. Mientras se mueve la palanca a los costados se sigue oyendo el tiempo anterior.
+  tap apagado `DELAY_TIME_DUCK_SECONDS` (la compuerta cierra y abre el tap en `DELAY_TIME_FADE_SECONDS`, pasando la
+  señal seca como un crossfade) y después vuelve a entrar. Mientras se mueve la palanca a los costados se sigue
+  oyendo el tiempo anterior.
+- S-FX: el buffer de feedback de `AudioEffectDelay` tiene su propio puntero y **no** pasa por el nivel del tap, así
+  que cambiarle el tiempo con el efecto sonando salta la lectura igual (era el click que quedaba). Se lo resincroniza
+  con el tap solo con `wet` por debajo de `DELAY_FEEDBACK_SYNC_WET` (el efecto apagado y su buffer ya en silencio).
+  Si se cambia el tiempo con el delay activo, el tap cambia y el feedback se queda con el anterior hasta soltarlo.
 - S-FX: el tiempo del delay y la velocidad del trémolo se interpolan en forma geométrica entre los tres puntos
   (−1 / 0 / +1), porque el oído los escucha en proporción. El feedback del delay es 0.4 × wet: en reposo no queda cola.
 - S-FX: el trémolo no existe como efecto en Godot: es una LFO de amplitud sobre un `AudioEffectAmplify` en el bus
@@ -312,7 +321,7 @@ No se resolvieron en silencio; quedan para que decida Maxi:
   (0.5 ↔ 12 Hz). Soltar y confirmar que todo vuelve al reposo en 3 s, y que al soltar solo la horizontal el speed se
   queda donde estaba. Confirmar que **izquierda o derecha solas no hacen nada** y que B1/B3/B4 no hacen nada ahí.
 - **S-FX fase 2 por Maxi**: en cualquier vista, mantener **J + K** (B2 + B3) y mover el stick (por ejemplo arriba y
-  después arriba + derecha) entre 1 y 5 s; soltar. El gesto tiene que repetirse en bucle en todas las vistas y
+  después arriba + derecha) entre 1 y 20 s; soltar. El gesto tiene que repetirse en bucle en todas las vistas y
   seguir sonando al cambiar de capa. Probar **regrabar** (J + K otra vez) y **borrar** (J + L 2 s, con la barra de
   progreso). Confirmar que un toque corto de J (sin combo) sigue cambiando de capa, que J ×4 llega a la vista general
   y que soltar J después de un combo no cambia de vista.
@@ -324,13 +333,14 @@ No se resolvieron en silencio; quedan para que decida Maxi:
 - Escuchar cómo se combina el gesto en bucle con el joystick real: al mantener arriba o abajo debería mandar el vivo
   y, al soltar, volver suavemente al valor grabado. Definir si la rampa de 3 s es cómoda.
 - Escuchar si el cambio entre vivo y grabado (o regrabar) produce clicks; la rampa de 3 s debería taparlos.
-- Confirmar que "REC 4.9…" y la barra de borrado se leen bien desde la distancia del arcade, y si 5 s de grabación
+- Confirmar que "REC 19.9…" y la barra de borrado se leen bien desde la distancia del arcade, y si 20 s de grabación
   y 2 s de borrado son cómodos.
 - Escuchar el trémolo a velocidades altas (12 Hz): la LFO se calcula en `_process` a 60 fps y puede sonar escalonada.
   No se va a resolver con complejidad; si molesta, lo más simple es bajar `TREMOLO_RATE_FAST_HZ` o limitar el rango.
 - Escuchar si cambiar el tiempo del delay en vivo hace clicks o glissandos. Ya no se cambia mientras la palanca se
   mueve hacia los costados (se aplica al soltarla, con el tap apagado un instante), pero falta confirmarlo de oído.
-  Definir si el hueco de `DELAY_TIME_DUCK_SECONDS` (50 ms) al cambiar el tiempo se nota demasiado.
+  Definir si el crossfade de `DELAY_TIME_DUCK_SECONDS` (200 ms, con 80 ms de rampa cada lado) se nota demasiado: en
+  wet alto se escucha la señal seca mientras el tap está apagado.
 - Definir si el feedback fijo en 0.4 y el rango 120–900 ms del delay quedan cómodos, y si el wet llegando a 1.0
   (dry 0) deja el instrumento muy flaco cuando el delay está al máximo.
 - Definir si el rango del trémolo (0.5–12 Hz) y que la profundidad llegue a 1.0 (silencio en el mínimo del LFO)

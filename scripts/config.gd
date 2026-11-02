@@ -230,11 +230,16 @@ const DELAY_FEEDBACK := 0.4
 const DELAY_FEEDBACK_LOWPASS_HZ := 4000.0
 
 # El tiempo del delay no se puede mover en marcha: AudioEffectDelay lee el buffer sin interpolar y
-# cada salto del tiempo suena como un click. Se cambia solo cuando el speed se quedó quieto, y con
-# el tap apagado un instante (pasa solo la señal seca) para que el salto no se escuche.
+# cada salto del tiempo suena como un click. Se cambia solo cuando el speed se quedó quieto, con el
+# tap apagado por una compuerta suave (pasa la señal seca) y después vuelve a entrar.
 const DELAY_TIME_SETTLE_SECONDS := 0.15
-const DELAY_TIME_DUCK_SECONDS := 0.05
-const DELAY_TIME_FADE_SECONDS := 0.015
+const DELAY_TIME_DUCK_SECONDS := 0.2
+const DELAY_TIME_FADE_SECONDS := 0.08
+
+# El feedback tiene su propio buffer y su propio puntero, que no pasan por el nivel del tap: cambiar
+# su tiempo salta la lectura. Se lo mueve solo con el efecto apagado (wet casi 0), cuando el buffer
+# ya está en silencio.
+const DELAY_FEEDBACK_SYNC_WET := 0.001
 
 # Trémolo: velocidad del LFO en Hz, también geométrica. El wet es la profundidad.
 const TREMOLO_RATE_SLOW_HZ := 0.5
@@ -253,7 +258,7 @@ const GESTURE_DIR_LEFT := 4
 const GESTURE_DIR_RIGHT := 8
 
 # La grabación dura lo que se mantiene el combo, entre estos dos valores.
-const GESTURE_MAX_SECONDS := 5.0
+const GESTURE_MAX_SECONDS := 20.0
 const GESTURE_MIN_SECONDS := 1.0
 # B2 + B4 mantenidos este tiempo borran el gesto guardado.
 const GESTURE_CLEAR_MSEC := 2000

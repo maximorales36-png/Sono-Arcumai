@@ -129,7 +129,8 @@ el speed se queda donde está. Al empezar a mantener, el wet da un salto inicial
 enseguida. Valores en `config.gd`: wet 0 a 1 en 3 s, speed de centro a extremo en 2 s, vuelta al reposo en 3 s.
 Delay: −1 = 900 ms, 0 = 400 ms, +1 = 120 ms (interpolación geométrica), feedback ~40 % del wet (en reposo
 no queda cola). El tiempo del delay se aplica cuando la palanca deja de moverse hacia los costados, no mientras
-se mueve: cambiarlo en marcha salta la lectura del buffer y suena como un click. Trémolo:
+se mueve: cambiarlo en marcha salta la lectura del buffer y suena como un click. El feedback se resincroniza con
+ese tiempo recién con el efecto apagado, porque su buffer también salta. Trémolo:
 −1 = 0.5 Hz, 0 = 3 Hz, +1 = 12 Hz.
 
 **Fase 1 (implementada):** efectos en vivo con el joystick, tal como describe la tabla.
@@ -138,7 +139,7 @@ se mueve: cambiarlo en marcha salta la lectura del buffer y suena como un click.
 
 - **Grabar**: B2 + B3 mantenidos. Se registran los cambios de dirección del joystick con su tiempo desde que se
   aprietan los dos botones, en cualquier vista. La grabación dura lo que se mantienen los botones, con máximo
-  `GESTURE_MAX_SECONDS` (5 s): al llegar al máximo corta sola. Mínimo `GESTURE_MIN_SECONDS` (1 s): si se suelta
+  `GESTURE_MAX_SECONDS` (20 s): al llegar al máximo corta sola. Mínimo `GESTURE_MIN_SECONDS` (1 s): si se suelta
   antes, se cancela y no reemplaza el gesto anterior. Mientras se graba, "REC" con el tiempo restante arriba al centro.
 - **Reproducir**: al terminar la grabación, el gesto se repite en bucle con su propia duración (la que duró la
   grabación) y suena en todas las vistas. Alimenta una segunda instancia de la misma lógica de efectos

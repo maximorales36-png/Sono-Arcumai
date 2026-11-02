@@ -21,6 +21,7 @@ var _applied_tap_ms: float = Config.DELAY_TIME_CENTER_MS
 var _last_speed: float = 0.0
 var _settle_seconds: float = 0.0
 var _duck_seconds: float = 0.0
+var _change_pending: bool = false
 var _tap_gate: float = 1.0
 
 
@@ -34,8 +35,10 @@ func _ready() -> void:
 func _create_effects() -> void:
 	_delay = AudioEffectDelay.new()
 	_delay.tap1_active = true
+	_delay.tap1_delay_ms = _applied_tap_ms
 	_delay.tap2_active = false
 	_delay.feedback_active = true
+	_delay.feedback_delay_ms = _applied_tap_ms
 	_delay.feedback_lowpass = Config.DELAY_FEEDBACK_LOWPASS_HZ
 	_delay.feedback_level_db = linear_to_db(Config.DELAY_FEEDBACK)
 	AudioServer.add_bus_effect(_master_index, _delay)
@@ -54,19 +57,21 @@ func _apply(delta: float) -> void:
 	var delay: State.FxUnit = state.live_fx.delay
 	var tremolo: State.FxUnit = state.live_fx.tremolo
 
+	# Compuerta del tap: se cierra al cambiar el tiempo del delay y se vuelve a abrir sola.
+	_tap_gate = move_toward(
+		_tap_gate, 0.0 if _duck_seconds > 0.0 else 1.0, delta / Config.DELAY_TIME_FADE_SECONDS
+	)
 	_update_delay_time(
 		_geometric(
 			Config.DELAY_TIME_SLOW_MS, Config.DELAY_TIME_CENTER_MS, Config.DELAY_TIME_FAST_MS, delay.speed
 		),
 		delay.speed,
-		delta
-	)
-	_tap_gate = move_toward(
-		_tap_gate, 0.0 if _duck_seconds > 0.0 else 1.0, delta / Config.DELAY_TIME_FADE_SECONDS
+		delta,
+		delay.wet
 	)
 
-	# Delay: wet 0 deja pasar la señal seca; wet 1 la reemplaza por los ecos. El tap se apaga un
-	# instante al cambiar el tiempo, así el salto de lectura no se escucha.
+	# Delay: wet 0 deja pasar la señal seca; wet 1 la reemplaza por los ecos. Con la compuerta
+	# cerrada pasa solo la señal seca, así el salto de tiempo no se escucha.
 	var wet := delay.wet * _tap_gate
 	_delay.dry = 1.0 - wet
 	_delay.tap1_level_db = linear_to_db(maxf(wet, Config.SILENT_GAIN))
@@ -85,9 +90,9 @@ func _apply(delta: float) -> void:
 	_amplify.volume_db = linear_to_db(maxf(gain, Config.SILENT_GAIN))
 
 
-# Pone el tiempo nuevo solo cuando el speed lleva quieto un momento, con el tap apagado: mover el
-# tiempo en marcha salta la lectura del buffer y suena como un click (y el feedback lo repite).
-func _update_delay_time(target_ms: float, speed: float, delta: float) -> void:
+# Pone el tiempo nuevo solo cuando el speed lleva quieto un momento y el tap ya se apagó.
+# Mover el tiempo en marcha salta la lectura del buffer del delay: es el click que se escuchaba.
+func _update_delay_time(target_ms: float, speed: float, delta: float, wet: float) -> void:
 	if not is_equal_approx(speed, _last_speed):
 		# Se está moviendo: se descarta el tiempo nuevo y se sigue con el que está puesto.
 		_last_speed = speed
@@ -95,17 +100,22 @@ func _update_delay_time(target_ms: float, speed: float, delta: float) -> void:
 	elif _settle_seconds < Config.DELAY_TIME_SETTLE_SECONDS:
 		_settle_seconds += delta
 
+	# El buffer de feedback no pasa por el nivel del tap: moverle el tiempo con el efecto sonando
+	# salta la lectura. Se lo resincroniza con el tap solo en reposo, cuando ya está en silencio.
+	if wet <= Config.DELAY_FEEDBACK_SYNC_WET and absf(_delay.feedback_delay_ms - _applied_tap_ms) > 1.0:
+		_delay.feedback_delay_ms = _applied_tap_ms
+
 	if _duck_seconds > 0.0:
 		_duck_seconds -= delta
-		if _duck_seconds <= 0.0:
+		if _change_pending and _tap_gate <= 0.01:
 			_applied_tap_ms = target_ms
 			_delay.tap1_delay_ms = _applied_tap_ms
-			_delay.feedback_delay_ms = _applied_tap_ms
+			_change_pending = false
 		return
 
-	if _settle_seconds >= Config.DELAY_TIME_SETTLE_SECONDS:
-		if absf(target_ms - _applied_tap_ms) > 1.0:
-			_duck_seconds = Config.DELAY_TIME_DUCK_SECONDS
+	if _settle_seconds >= Config.DELAY_TIME_SETTLE_SECONDS and absf(target_ms - _applied_tap_ms) > 1.0:
+		_duck_seconds = Config.DELAY_TIME_DUCK_SECONDS
+		_change_pending = true
 
 
 # Tres puntos en escala geométrica: -1 → lento, 0 → centro, +1 → rápido.
