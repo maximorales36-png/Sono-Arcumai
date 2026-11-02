@@ -7,13 +7,16 @@ Mantenerlo corto: reemplazar lo viejo, no acumular.
 
 - S0 a S5 completos en la máquina de desarrollo, con samples placeholder (dos por capa, cuatro capas).
 - Suenan las 4 capas a la vez, cada una con su período, su color, su filtro y su reverb; `btn2` cambia la capa activa
-  y, después de la cuarta, muestra las cuatro juntas en modo solo mirar. `btn3` mueve timbre y `btn4` envolvente.
+  y, después de la cuarta, muestra la vista general con las cuatro juntas. `btn3` mueve timbre y `btn4` envolvente.
 - S5: la sesión se graba desde el arranque (tope de 8 min); B3 + B4 mantenidos 2 s guardan JSON + WAV en
   `user://piezas` y muestran el nombre 4 s; los 4 botones 5 s cierran la aplicación; a los 5 min sin input la pieza
   se vacía y la grabación se reinicia.
-- S5b: en la vista de todas las capas el joystick maneja efectos globales: arriba enciende el delay (feedback creciente
-  al mantener, izquierda/derecha el tiempo) y abajo el tremolo (profundidad creciente). Al soltar, se desvanecen.
-- Bloqueado antes de S6: S0b en el arcade, la entrega de los samples reales y la prueba de S5/S5b por parte de Maxi.
+- S-FX fase 1: en la vista general (la quinta posición de B2) el joystick no mueve el cursor y maneja dos efectos
+  globales. Arriba enciende el delay y sube su wet; arriba + izquierda/derecha mueven su speed (tiempo). Abajo hace
+  lo mismo con el trémolo (profundidad y velocidad). Al soltar, wet y speed vuelven al reposo en 3 s. Dos paneles
+  abajo a la derecha muestran wet y speed. B1 no hace nada ahí, B3/B4 solos tampoco, y el secuenciador sigue.
+- S-FX fase 2 (grabar el gesto) todavía no está implementada.
+- Bloqueado antes de S6: S0b en el arcade, la entrega de los samples reales y la prueba de S-FX por parte de Maxi.
   El arranque automático quedó fuera de alcance (la mini PC ya abre un menú de juegos).
 
 ## Datos a confirmar (Maxi)
@@ -40,22 +43,27 @@ Mantenerlo corto: reemplazar lo viejo, no acumular.
 - `export_presets.cfg`: preset `Linux` (x86_64, pck embebido), salida `build/arcumai.x86_64`.
   Export verificado: ELF x86_64 de 70 MB. Falta probarlo en el arcade (S0b).
 - `scenes/main.tscn`: un único nodo raíz con `scripts/main.gd`.
-- `scripts/main.gd`: registra el InputMap en `_enter_tree`, crea `State`, `Sequencer`, `VoicePool`, `GlobalFx`,
-  `Controller`, `Saver` y `View`, conecta `step_entered` y los pedidos de guardar, salir y reiniciar; al reiniciar
-  por inactividad vuelve a aplicar los parámetros a los cuatro buses. Oculta el mouse; Esc cierra solo en builds
-  de debug.
+- `scripts/main.gd`: registra el InputMap en `_enter_tree`, crea `State`, `FxDrive` (con `state.live_fx`),
+  `Sequencer`, `VoicePool`, `GlobalFx`, `Controller`, `Saver` y `View`, conecta `step_entered` y los pedidos de
+  guardar, salir y reiniciar; al reiniciar por inactividad vuelve a aplicar los parámetros a los cuatro buses.
+  Oculta el mouse; Esc cierra solo en builds de debug.
 - `scripts/config.gd`: acciones y mapeos, grilla (16x10, 4 capas), tiempos del cursor, colores por capa, períodos por
   capa con `TEMPO_SCALE` global, escala pentatónica menor de 10 grados, dos samples por capa (grave/agudo) con su
-  nota raíz, corte de zona, volumen, rangos de timbre/envolvente (S4) y parámetros de sesión (S5: carpeta, tope de
-  grabación, tiempos de los combos, inactividad, palabras del nombre, cartel).
+  nota raíz, corte de zona, volumen, rangos de timbre/envolvente (S4), parámetros de sesión (S5: carpeta, tope de
+  grabación, tiempos de los combos, inactividad, palabras del nombre, cartel) y efectos globales de S-FX (bus `fx`,
+  tiempos de rampa, salto inicial, tiempos y feedback del delay, velocidades del trémolo, paneles de la vista).
 - `scripts/state.gd`: `State` y `State.Layer` (notas como conjunto de celdas `Vector2i`), parámetros de timbre y
   envolvente por capa, cursor, `active_plane`, `toggle_note`, nombre de la última pieza guardada con su vencimiento,
-  `reset_piece()` y `Layer.reset()`, y los parámetros de los efectos globales (modo, tiempo, feedback, wet, profundidad).
+  `reset_piece()` y `Layer.reset()`, y los efectos globales de S-FX: `FxUnit` (wet y speed), `FxSet` (delay y
+  trémolo) y `live_fx`.
 - `scripts/controller.gd`: cursor con repetición propia (250 ms inicial, 80 ms después), `btn1` alterna nota,
   `btn2` pasa a la capa siguiente (circular) y emite `layer_changed`; con `btn3`/`btn4` apretados el joystick mueve
   cutoff/reverb o ataque/decay de la capa activa y emite `parameters_changed`, sin mover el cursor. Detecta los
   combos de guardado y salida (`save_requested`, `quit_requested`) y el tiempo sin input (`inactivity_reset`).
-  En la vista de todas las capas maneja el modo de los efectos globales en `State.fx_mode`.
+  En la vista general alimenta `FxDrive` con las cuatro direcciones; fuera de ella lo alimenta con todo suelto.
+- `scripts/fx_drive.gd`: lógica de los efectos, sin nodos ni audio. Convierte `(arriba, abajo, izquierda, derecha,
+  delta)` en wet y speed de un `State.FxSet`: salto inicial de 0.15, wet 0→1 en 3 s, speed centro→extremo en 2 s,
+  retorno en 3 s, y el speed se queda quieto si no hay horizontal. La fase 2 va a usar una segunda instancia.
 - `scripts/sequencer.gd`: fase por capa calculada desde el origen con su período y `TEMPO_SCALE`;
   `step_entered(layer, step)` al cambiar de paso.
 - `scripts/voice_pool.gd`: un pool por capa y zona (4 x 2 x 8 voces = 64 reproductores), un bus por capa
@@ -66,21 +74,22 @@ Mantenerlo corto: reemplazar lo viejo, no acumular.
 - `scripts/saver.gd`: `AudioEffectRecord` en el bus Master, grabación desde el arranque con tope de 8 min, WAV y
   JSON en la carpeta de piezas al guardar (y grabación nueva después de guardar), nombre de dos palabras y dos
   dígitos sin pisar una pieza existente, `restart_recording()` para el reinicio por inactividad.
-- `scripts/global_fx.gd`: crea el bus común `fx`, manda ahí los cuatro buses de capa, y aplica cada frame el delay
-  (`AudioEffectDelay`, wet fijo 0.4, feedback y tiempo desde el `State`) y el tremolo (`AudioEffectAmplify` con una
-  LFO de amplitud a 4 Hz), con entrada rápida y desvanecido lento.
-- `scripts/view.gd`: grilla, notas de la capa activa (o de las 4 en la vista de todas, con las celdas compartidas
+- `scripts/global_fx.gd`: crea el bus común `fx`, manda ahí los cuatro buses de capa y fija `fx` → Master. Cada
+  frame lleva `state.live_fx` al audio: el delay (`AudioEffectDelay`, tiempo geométrico 900/400/120 ms según speed,
+  feedback fijo 0.4, dry = 1 − wet) y el trémolo (`AudioEffectAmplify` con LFO de amplitud, velocidad geométrica
+  0.5/3/12 Hz, profundidad = wet). La fase del LFO se acumula con `delta` para que no salte al cambiar la velocidad.
+- `scripts/view.gd`: grilla, notas de la capa activa (o de las 4 en la vista general, con las celdas compartidas
   partidas en franjas por capa), una línea de barrido por capa (la activa más gruesa y encima), cursor con contorno
-  parpadeante (600 ms) que desaparece en la vista de todas, cuadrado con punto (abajo a la derecha) mientras
-  B3 o B4 están apretados (o mientras suena un efecto global, con su color) y el cartel "guardado: nombre" arriba
-  al centro por 4 s.
+  parpadeante (600 ms) que desaparece en la vista general, cuadrado con punto (abajo a la derecha) mientras
+  B3 o B4 están apretados, dos paneles de efectos en la vista general (delay arriba, trémolo abajo, con barra de wet
+  y marcador de speed) y el cartel "guardado: nombre" arriba al centro por 4 s.
 - `tools/make_placeholder_wav.gd` y `assets/samples/layer_N_low.wav` / `layer_N_high.wav` (N = 1…4):
   senos con decay, 2 s, mono, 44.1 kHz, raíz MIDI 57 el grave y 69 el agudo, con armónicos distintos por capa
   para distinguirlas de oído.
 - Verificado por mí: `--headless --quit` sin errores de script; 4 capas con sus 8 samples cargados; alturas por zona
   (fila 9 = 1.000 y fila 0 = 1.782 en las cuatro capas); una nota en el paso 3 suena en las 4 capas; la nota fantasma
   solo suena en la capa activa; `btn2` recorre 1→2→3→4→vista de todas→1 conservando las notas y hace sonar la vista
-  previa en cada capa; en la vista de todas, B1 y el joystick no tocan el estado y el fantasma no suena;
+  previa en cada capa; en la vista general B1 no toca las notas, el joystick no mueve el cursor y el fantasma no suena;
   celdas compartidas con 1, 2, 3 y 4 capas partidas en la cantidad correcta de franjas con el color de cada capa
   (muestreado del PNG); avance de fase medido en 2 s dentro de 0.01 pasos de lo esperado; capturas de la vista de
   todas y de la capa 1.
@@ -95,13 +104,16 @@ Mantenerlo corto: reemplazar lo viejo, no acumular.
   borra el nombre y devuelve el cutoff del bus a 12000 Hz; al simular el tope de 8 min la grabación se corta
   (`push_error`) y el guardado siguiente escribe JSON sin WAV y vuelve a grabar; el combo de los 4 botones a los 5 s
   cierra la aplicación.
-- Verificado en S5b: 6 buses (Master, 4 capas y `fx`); las 4 capas envían a `fx` y `fx` a Master, con pico medido en
-  Master de -8.3 dB (el audio llega); el bus `fx` tiene `AudioEffectDelay` + `AudioEffectAmplify`; con arriba
-  mantenido el feedback llegó a 0.75 (tap -8 dB, feedback -2.5 dB), el wet a 0.4 y el dry a 0.6; izquierda llevó el
-  tiempo de 300 a 525 ms y derecha lo devolvió a 300 ms; al soltar el wet llegó a 0, el dry a 1.0 y el tap a -80 dB;
-  con abajo el tremolo moduló el amplificador entre -12 y 0 dB; 1.7 s después de soltar, wet y profundidad en 0;
-  fuera de la vista el joystick mueve el cursor y el modo de efectos queda en ninguno; captura del indicador del delay
-  con el punto arriba (feedback máximo) y a la derecha del centro (tiempo 300 ms).
+- Verificado en S-FX fase 1: 6 buses (Master, 4 capas y `fx`); las 4 capas envían a `fx` y `fx` a Master, con pico
+  medido en Master de -8.3 dB; el bus `fx` tiene `AudioEffectDelay` + `AudioEffectAmplify`. Rampas medidas con
+  delta fijo: salto inicial del wet 0.156, wet en 1.0 a los 3 s, speed en 1.0 a los 2 s, el speed se mantiene al
+  soltar la horizontal y wet/speed vuelven a 0 a los 3 s; solo horizontal 4 s deja wet y speed en 0. Mapeo del delay
+  exacto en 900/400/120 ms para speed -1/0/+1 y del trémolo en 0.50/3.00/12.00 Hz. En vivo: arriba 1.3 s → wet 0.584,
+  dry 0.421, tap -4.8 dB, feedback -8.0 dB; arriba + derecha 0.7 s → speed 0.409, 244 ms; 0.7 s después de soltar la
+  horizontal el speed seguía en 0.409; 3.2 s después de soltar todo, wet y speed en 0. Abajo 1.5 s → wet 0.65 y el
+  amplificador modulando entre -7.9 y 0 dB a 3.00 Hz medidos; 3.2 s después, wet 0. B1 en la vista general no cambió
+  las 4 notas; el cursor quedó en paso 0 fila 0; B2 salió a la capa 1; el secuenciador siguió avanzando
+  (fase 3.064 → 4.234 en 0.5 s); captura de los dos paneles con la barra de wet del delay y el marcador centrado.
 
 ### Medición de tiempo (S2)
 
@@ -134,9 +146,9 @@ de lo esperado por período.
   se escuche en el acto.
 - S3: la línea de la capa activa va más gruesa y se dibuja última (encima). En la vista de todas valen lo mismo.
 - S3: `TEMPO_SCALE` divide los períodos (más grande = más rápido), fijo en 1.0 por ahora.
-- S3: después de la capa 4, `btn2` muestra la vista de todas las capas (decisión de Maxi). Es solo para mirar:
-  `State.show_all_layers` corta el cursor, el fantasma, B1 y el joystick; solo responde B2, que vuelve a la capa 1
-  y hace sonar la vista previa. `get_active_layer()` tiene un assert para que nadie edite en esa vista.
+- S3: después de la capa 4, `btn2` muestra la vista general (decisión de Maxi). Corta el cursor, el fantasma y B1,
+  y el joystick no mueve el cursor: desde S-FX maneja los efectos globales. Solo B2 sale de esa vista, y
+  `get_active_layer()` tiene un assert para que nadie edite ahí.
 - S3: en la vista de todas, una celda con varias capas se parte en franjas horizontales iguales, una por capa en
   orden de capa (decisión de Maxi). Una celda con una sola capa queda entera.
 - S4: un bus por capa (`layer_1` … `layer_4`) creado por código, con cutoff y reverb propios. Las voces de una capa
@@ -162,18 +174,22 @@ de lo esperado por período.
 - S5: la inactividad se mide con cualquier `InputEvent` y con cualquier acción apretada. Cualquier movimiento del
   joystick cuenta como actividad.
 - S5: el arranque automático quedó fuera de S5 por decisión de Maxi: la mini PC ya abre un menú de juegos.
-- S5b: las cuatro capas pasan por un bus común `fx` antes de Master. El delay y el tremolo viven ahí, así afectan
+- S-FX: las cuatro capas pasan por un bus común `fx` antes de Master. El delay y el trémolo viven ahí, así afectan
   a todo por igual y el `AudioEffectRecord` de Master los graba. El envío `fx` → Master se fija explícito porque un
-  bus nuevo no lo trae.
-- S5b: el delay se apaga bajando el wet a 0 y **subiendo el dry a 1.0** al mismo tiempo. Si solo bajara el wet, el
-  instrumento quedaría 4 dB más bajo al desaparecer el efecto.
-- S5b: cada efecto entra en 0.2 s y se va en 1.5 s. El feedback, el tiempo y la profundidad quedan guardados entre
-  usos; solo el "wet" y la profundidad que suenan se desvanecen.
-- S5b: el tiempo del delay se mueve en proporción (×1.15), como el cutoff; izquierda alarga y derecha acorta
-  (decisión de Maxi). Izquierda/derecha solo responden con arriba apretado.
-- S5b: el tremolo es una LFO de amplitud hecha con un `AudioEffectAmplify` en el bus `fx`, con fase desde
-  `Time.get_ticks_usec()` (no se acumula `delta`). La velocidad es fija en 4 Hz; solo cambia la profundidad.
-- S5b: el efecto global no se guarda en el JSON (la pieza son las notas y los parámetros por capa); el WAV sí lo
+  bus nuevo no lo trae (bug encontrado en S5b).
+- S-FX: la lógica de wet/speed vive en `scripts/fx_drive.gd` (`class_name FxDrive`), separada del audio. Es un script
+  nuevo justificado: la fase 2 necesita dos instancias de la misma lógica (joystick vivo y gesto grabado).
+  `global_fx.gd` quedó solo como lado de audio y lee `state.live_fx` (por ahora, una sola instancia).
+- S-FX: el delay se apaga bajando el wet a 0 y subiendo el dry a 1 − wet al mismo tiempo, así el instrumento no queda
+  más bajo al desaparecer el efecto.
+- S-FX: el tiempo del delay y la velocidad del trémolo se interpolan en forma geométrica entre los tres puntos
+  (−1 / 0 / +1), porque el oído los escucha en proporción. El feedback del delay es fijo en 0.4.
+- S-FX: el trémolo no existe como efecto en Godot: es una LFO de amplitud sobre un `AudioEffectAmplify` en el bus
+  `fx`, calculada en `_process` a la frecuencia de frames. La fase se acumula con `delta` (no se recalcula desde el
+  reloj) para que no salte al cambiar la velocidad; el costo es que a 12 Hz y 60 fps hay ~5 muestras por ciclo.
+- S-FX: en la vista general el controller alimenta `FxDrive` con las cuatro direcciones; en cualquier otra vista lo
+  alimenta con todo suelto, así lo que estaba sonando vuelve al reposo. Los combos también lo fuerzan a reposo.
+- S-FX: el efecto global no se guarda en el JSON (la pieza son las notas y los parámetros por capa); el WAV sí lo
   contiene tal como se tocó.
 
 ## Propuestas de diseño
@@ -181,11 +197,21 @@ de lo esperado por período.
 Cambios que implican tocar `docs/DISENO.md`. El agente los anota acá; Maxi decide.
 Formato: qué se propone, por qué, y qué evidencia lo sostiene (por ejemplo, la prueba con una persona de S2).
 
-- **Actualizar `DISENO.md` con S5b**: hoy dice que en la vista de todas las capas "el joystick no hace nada" y que
-  "es solo para mirar". Con S5b el joystick maneja el delay (arriba, con izquierda/derecha para el tiempo) y el
-  tremolo (abajo), y los dos se desvanecen al soltar. Propongo corregir ese párrafo y agregar los efectos globales
-  al bus `fx` en la sección Sonido. Código ya implementado y verificado.
-- **Actualizar la lista de scripts de `AGENTS.md`** con `scripts/global_fx.gd`.
+- **Actualizar la lista de scripts de `AGENTS.md`** con `scripts/global_fx.gd` y `scripts/fx_drive.gd`.
+
+## Contradicciones detectadas (S-FX)
+
+No se resolvieron en silencio; quedan para que decida Maxi:
+
+- `DISENO.md`, tabla de Botones: "Joystick (solo): mueve el cursor". En la vista general no lo mueve: maneja los
+  efectos. La sección de la vista general ya lo aclara, pero la tabla sigue diciendo lo contrario.
+- `DISENO.md`, tabla de Botones: B2 es "toque". La fase 2 pide que la vista cambie **al soltar** B2, y solo si no se
+  usó en un combo. El código de la fase 1 sigue cambiando con `just_pressed`; hay que ajustarlo en la fase 2.
+- `DISENO.md`, Grabación: dice "estéreo 44.1 kHz" y "unos 85 MB". El código graba a la frecuencia del mixer
+  (48 kHz) y la medición de S5 dio ~92 MB para 8 minutos.
+- `AGENTS.md`: la lista de scripts no incluye `global_fx.gd` ni `fx_drive.gd`.
+- `AGENTS.md`: dice que la vista de todas las capas es para mirar y que el joystick no hace nada; el diseño de S-FX
+  la convierte en la vista de efectos en vivo.
 
 ## Pendientes
 
@@ -209,14 +235,19 @@ Formato: qué se propone, por qué, y qué evidencia lo sostiene (por ejemplo, l
 - Decidir si el combo de guardado (B3 + B4, 2 s) es cómodo, teniendo en cuenta que esos botones también mueven
   timbre y envolvente mientras se los mantiene apretados.
 - Decidir si el reinicio por inactividad tiene que avisar algo en pantalla: hoy la grilla se vacía sin cartel.
-- **S5b por Maxi**: en la vista de todas las capas, empujar el stick arriba (delay) y escuchar cómo el feedback crece
-  al mantener; con arriba + izquierda/derecha, escuchar el cambio de tiempo (con feedback alto aparece el warble
-  típico de cinta). Empujar abajo (tremolo) y escuchar la profundidad creciendo. Soltar y confirmar el desvanecido.
-  Definir si 4 Hz, el rango de tiempo (80–800 ms), el feedback máximo (0.75) y los tiempos de fade (0.2/1.5 s) quedan
-  cómodos.
-- Escuchar si el tremolo, modulado desde `_process` a 60 fps, suena escalonado a 4 Hz y con profundidad máxima.
-  Si molesta: bajar la velocidad, bajar la profundidad máxima o usar `AudioEffectChorus`.
-- Revisar el volumen general con el delay al 40 % de wet: el dry baja a 0.6 mientras el efecto está encendido.
+- **S-FX fase 1 por Maxi**: llegar a la vista general (J ×4) y empujar el stick **arriba**: el delay entra con un
+  salto chico y el wet sube mientras se mantiene; **arriba + izquierda/derecha** mueve el tiempo (900 ↔ 120 ms).
+  Empujar **abajo**: trémolo, con la profundidad subiendo; **abajo + izquierda/derecha** mueve la velocidad
+  (0.5 ↔ 12 Hz). Soltar y confirmar que todo vuelve al reposo en 3 s, y que al soltar solo la horizontal el speed se
+  queda donde estaba. Confirmar que **izquierda o derecha solas no hacen nada** y que B1/B3/B4 no hacen nada ahí.
+- Escuchar el trémolo a velocidades altas (12 Hz): la LFO se calcula en `_process` a 60 fps y puede sonar escalonada.
+  No se va a resolver con complejidad; si molesta, lo más simple es bajar `TREMOLO_RATE_FAST_HZ` o limitar el rango.
+- Escuchar si cambiar el tiempo del delay en vivo (sobre todo con wet alto) hace clicks o glissandos. La rampa del
+  wet debería taparlos; si no, reportarlo.
+- Definir si el feedback fijo en 0.4 y el rango 120–900 ms del delay quedan cómodos, y si el wet llegando a 1.0
+  (dry 0) deja el instrumento muy flaco cuando el delay está al máximo.
+- Definir si el rango del trémolo (0.5–12 Hz) y que la profundidad llegue a 1.0 (silencio en el mínimo del LFO)
+  son cómodos.
 - Medir el pico de RAM al guardar una grabación de 8 minutos (~92 MB de audio en RAM, 48 kHz estéreo 16 bits,
   y al codificar el WAV se duplica un momento).
 - Si una pieza se toca más de 8 min seguidos, la grabación ya se cortó: al guardar queda solo el JSON. Decidir si

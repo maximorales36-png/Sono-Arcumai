@@ -95,12 +95,47 @@ Cada capa guarda sus propios parámetros de timbre y envolvente.
   cursor como contorno parpadeante del color de la capa activa.
 - Mientras B3 o B4 están apretados, abajo a la derecha aparece un cuadrado oscuro con un punto del color de la capa
   activa: X = parámetro horizontal, Y = parámetro vertical (arriba = más). Desaparece al soltar el botón.
-- **Vista de todas las capas**: después de la última capa, B2 muestra las notas de las cuatro capas superpuestas,
+- **Vista general**: después de la última capa, B2 muestra las notas de las cuatro capas superpuestas,
   cada una en su color. Si varias capas tienen nota en la misma celda, el cuadrado se parte en franjas horizontales,
-  una por capa, en orden de capa. Es solo para mirar: no hay cursor, no suena la nota fantasma, B1 y el joystick
-  no hacen nada, y las cuatro líneas de barrido valen lo mismo. El siguiente B2 vuelve a la capa 1.
+  una por capa, en orden de capa. No hay cursor, no suena la nota fantasma, B1 no hace nada, B3 y B4 solos no hacen
+  nada, y las cuatro líneas de barrido valen lo mismo. El joystick no mueve el cursor: maneja los efectos globales.
+  El secuenciador sigue corriendo. El siguiente B2 vuelve a la capa 1.
+- **Indicadores de efectos**: en la vista general, abajo a la derecha, dos paneles: delay arriba y trémolo abajo.
+  Cada uno tiene una barra de wet (vacía en reposo) y un marcador de speed (centro = 0, izquierda = lento,
+  derecha = rápido). Se dibujan con `_draw()`.
 - Nada de texto salvo el nombre de la pieza al guardar y los indicadores de B3/B4 mientras están apretados.
 - Mouse oculto. Pantalla completa.
+
+### Efectos globales (S-FX)
+
+Afectan a todos los sonidos por igual: las cuatro capas pasan por un bus `fx` antes de Master, creado por código,
+y la grabación del WAV captura la salida de Master, ya con los efectos. Cada efecto tiene dos valores: `wet`
+(0 a 1, reposo 0) y `speed` (−1 lento, 0 centro, +1 rápido, reposo 0).
+
+| Entrada (mantenida) | Efecto |
+|---|---|
+| Arriba, solo o en diagonal | Delay activo; su wet sube mientras se mantiene |
+| Arriba + izquierda / derecha | Speed del delay hacia −1 (tiempo largo) / +1 (tiempo corto) |
+| Abajo, solo o en diagonal | Trémolo activo; su wet (profundidad) sube mientras se mantiene |
+| Abajo + izquierda / derecha | Speed del trémolo hacia −1 (lento) / +1 (rápido) |
+| Izquierda o derecha solas | No hacen nada |
+
+Reglas: un efecto está activo mientras se mantiene su dirección vertical y los dos son independientes. Al soltarla,
+wet y speed vuelven lentamente al reposo. Si se suelta la parte horizontal pero se sigue manteniendo la vertical,
+el speed se queda donde está. Al empezar a mantener, el wet da un salto inicial chico (~0.15) para que se oiga
+enseguida. Valores en `config.gd`: wet 0 a 1 en 3 s, speed de centro a extremo en 2 s, vuelta al reposo en 3 s.
+Delay: −1 = 900 ms, 0 = 400 ms, +1 = 120 ms (interpolación geométrica), feedback fijo ~40 %. Trémolo:
+−1 = 0.5 Hz, 0 = 3 Hz, +1 = 12 Hz.
+
+**Fase 1 (implementada en esta sesión):** efectos en vivo con el joystick, tal como describe la tabla.
+
+**Fase 2 (pendiente):** grabar el gesto. B2 + B3 mantenidos registran los cambios de dirección del joystick con su
+tiempo (máximo `GESTURE_MAX_SECONDS` = 5 s; menos de 1 s cancela la grabación y no reemplaza el gesto anterior).
+Al terminar, el gesto se repite en bucle alimentando un segundo joystick virtual hacia la misma lógica de efectos
+(una clase, dos instancias). Por efecto, si el joystick real lo mantiene activo manda el valor en vivo; si no,
+manda el grabado, y el retorno al reposo apunta al valor grabado. B2 + B4 mantenidos 2 s borran el gesto.
+B2 cambia de vista al soltarlo y solo si no se usó en un combo. El gesto se guarda en el JSON y se pierde con el
+reinicio por inactividad.
 
 ## Después (NO implementar sin pedido explícito)
 
