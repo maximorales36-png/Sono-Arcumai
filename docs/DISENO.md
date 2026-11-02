@@ -110,9 +110,10 @@ Cada capa guarda sus propios parámetros de timbre y envolvente.
 
 ### Efectos globales (S-FX)
 
-Afectan a todos los sonidos por igual: las cuatro capas pasan por un bus `fx` antes de Master, creado por código,
-y la grabación del WAV captura la salida de Master, ya con los efectos. Cada efecto tiene dos valores: `wet`
-(0 a 1, reposo 0) y `speed` (−1 lento, 0 centro, +1 rápido, reposo 0).
+Afectan a todos los sonidos por igual: el delay y el trémolo van sobre el bus Master, donde ya está mezclada
+la salida de las cuatro capas, y la grabación del WAV los captura ya con los efectos. (No hay bus `fx`: en
+Godot 4.7 un envío cambiado después de crear los buses no llega al audio; ver `docs/ESTADO.md`.) Cada efecto
+tiene dos valores: `wet` (0 a 1, reposo 0) y `speed` (−1 lento, 0 centro, +1 rápido, reposo 0).
 
 | Entrada (mantenida) | Efecto |
 |---|---|

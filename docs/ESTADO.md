@@ -86,10 +86,12 @@ Mantenerlo corto: reemplazar lo viejo, no acumular.
   JSON en la carpeta de piezas al guardar (y grabación nueva después de guardar), nombre de dos palabras y dos
   dígitos sin pisar una pieza existente, `restart_recording()` para el reinicio por inactividad. El JSON incluye el
   gesto (`duration` y `events`; `{}` si no hay).
-- `scripts/global_fx.gd`: crea el bus común `fx`, manda ahí los cuatro buses de capa y fija `fx` → Master. Cada
-  frame lleva `state.live_fx` al audio: el delay (`AudioEffectDelay`, tiempo geométrico 900/400/120 ms según speed,
-  feedback fijo 0.4, dry = 1 − wet) y el trémolo (`AudioEffectAmplify` con LFO de amplitud, velocidad geométrica
-  0.5/3/12 Hz, profundidad = wet). La fase del LFO se acumula con `delta` para que no salte al cambiar la velocidad.
+- `scripts/global_fx.gd`: pone el delay y el trémolo sobre el bus Master (donde ya está la mezcla de las cuatro
+  capas; no hay bus `fx`, ver la decisión de S-FX fase 2 sobre el ruteo). Cada frame lleva `state.live_fx` al audio:
+  el delay (`AudioEffectDelay`, tiempo geométrico 900/400/120 ms según speed, feedback fijo 0.4, dry = 1 − wet) y el
+  trémolo (`AudioEffectAmplify` con LFO de amplitud, velocidad geométrica 0.5/3/12 Hz, profundidad = wet). La fase
+  del LFO se acumula con `delta` para que no salte al cambiar la velocidad. main.gd lo agrega antes del saver, así el
+  `AudioEffectRecord` de Master queda después en la cadena y graba los efectos.
 - `scripts/view.gd`: grilla, notas de la capa activa (o de las 4 en la vista general, con las celdas compartidas
   partidas en franjas por capa), una línea de barrido por capa (la activa más gruesa y encima), cursor con contorno
   parpadeante (600 ms) que desaparece en la vista general, cuadrado con punto (abajo a la derecha) mientras
@@ -138,6 +140,12 @@ Mantenerlo corto: reemplazar lo viejo, no acumular.
   arriba + derecha (máscara 9): en bucle y sin joystick, wet vivo 0.495 = wet grabado 0.495, speed 0.517, tap 218 ms;
   B2+B4 lo borra y 3.2 s después wet 0 y tap 400 ms. Captura de la vista general con "REC 3.4", la barra de borrado
   al 60 % y los dos paneles.
+- Corregido en S-FX fase 2 (audio inaudible): con el bus `fx`, el pico de `fx` daba -200 dB mientras Master daba
+  -8 dB con las cuatro capas sonando, o sea el envío no llegaba al audio. Con los efectos en Master, medido sobre el
+  WAV que graba el propio saver (RMS cada 20-150 ms): en reposo -6 a -10 dB estable; con trémolo a fondo el RMS
+  oscila entre -4 y -54 dB, 3 ciclos por segundo; con delay a fondo (dry 0.00, tap 400 ms), 1.7 s después de cortar
+  todas las voces el RMS sigue entre -11 y -26 dB (cola de ecos). `AudioEffectCapture` no sirve como sonda en esta
+  máquina: devuelve 0 frames en cualquier bus.
 
 ### Medición de tiempo (S2)
 
@@ -198,9 +206,13 @@ de lo esperado por período.
 - S5: la inactividad se mide con cualquier `InputEvent` y con cualquier acción apretada. Cualquier movimiento del
   joystick cuenta como actividad.
 - S5: el arranque automático quedó fuera de S5 por decisión de Maxi: la mini PC ya abre un menú de juegos.
-- S-FX: las cuatro capas pasan por un bus común `fx` antes de Master. El delay y el trémolo viven ahí, así afectan
-  a todo por igual y el `AudioEffectRecord` de Master los graba. El envío `fx` → Master se fija explícito porque un
-  bus nuevo no lo trae (bug encontrado en S5b).
+- S-FX fase 2: el delay y el trémolo van sobre el bus **Master**, no sobre un bus `fx` propio. Con el bus `fx` no
+  se escuchaban: `AudioServer.set_bus_send()` no llegaba al audio cuando el bus de destino se creaba después que el
+  de origen (medido en Godot 4.7.2: 6 buses, `get_bus_send()` devolvía `fx`, pero el pico de `fx` quedaba en -200 dB
+  y la señal aparecía en Master). Se probó re-aplicar el envío y forzar el layout: seguía igual. Master ya tiene la
+  mezcla de las cuatro capas, así que los efectos afectan a todo y el WAV los graba, con un bus menos y sin orden de
+  creación entre `global_fx` y `voice_pool`. Lo que se deja afuera: si algún día suena algo que no deba llevar
+  efectos, va a haber que volver al bus propio (creándolo antes que los de capa).
 - S-FX: la lógica de wet/speed vive en `scripts/fx_drive.gd` (`class_name FxDrive`), separada del audio. Es un script
   nuevo justificado: la fase 2 usa dos instancias de la misma lógica (joystick vivo y gesto grabado).
   `global_fx.gd` quedó solo como lado de audio y lee `state.live_fx`.
@@ -209,7 +221,7 @@ de lo esperado por período.
 - S-FX: el tiempo del delay y la velocidad del trémolo se interpolan en forma geométrica entre los tres puntos
   (−1 / 0 / +1), porque el oído los escucha en proporción. El feedback del delay es fijo en 0.4.
 - S-FX: el trémolo no existe como efecto en Godot: es una LFO de amplitud sobre un `AudioEffectAmplify` en el bus
-  `fx`, calculada en `_process` a la frecuencia de frames. La fase se acumula con `delta` (no se recalcula desde el
+  Master, calculada en `_process` a la frecuencia de frames. La fase se acumula con `delta` (no se recalcula desde el
   reloj) para que no salte al cambiar la velocidad; el costo es que a 12 Hz y 60 fps hay ~5 muestras por ciclo.
 - S-FX: en la vista general el controller alimenta `FxDrive` con las cuatro direcciones; en cualquier otra vista lo
   alimenta con todo suelto. Con gesto grabado, ese "suelto" apunta a los valores grabados en vez de a 0.
@@ -292,6 +304,9 @@ No se resolvieron en silencio; quedan para que decida Maxi:
   seguir sonando al cambiar de capa. Probar **regrabar** (J + K otra vez) y **borrar** (J + L 2 s, con la barra de
   progreso). Confirmar que un toque corto de J (sin combo) sigue cambiando de capa, que J ×4 llega a la vista general
   y que soltar J después de un combo no cambia de vista.
+- **S-FX fase 2, audio (por Maxi)**: re-exportar el build (el de `build/` es del 31/10 y no tiene S-FX) y escuchar:
+  en la vista general (J ×4) mantener arriba y abajo para el delay y el trémolo, y guardar con K + L para confirmar
+  que el WAV los incluye. Acá quedó medido sobre el WAV del saver, pero falta el oído en el arcade.
 - `controller.gd` pasó de ~270 a ~342 líneas. Si sigue creciendo, separar en un script propio la lógica de combos y
   gesto (sin cambiar el diseño). No se hizo en S-FX para no refactorizar lo que funciona.
 - Escuchar cómo se combina el gesto en bucle con el joystick real: al mantener arriba o abajo debería mandar el vivo
@@ -318,6 +333,10 @@ No se resolvieron en silencio; quedan para que decida Maxi:
 
 - Al abrir el editor, Godot puede escribir `default_bus_layout.tres` (con el volumen del Master tocado). No va en el
   repo: borrarlo. Los buses se crean por código y ese archivo los contradice.
+- En el panel de Audio del editor solo se ve Master: los buses de capa se crean por código al arrancar y viven solo
+  en runtime. Además, en Godot 4.7.2 `AudioServer.set_bus_send()` no llega al audio si el bus de destino se creó
+  después que el de origen (ver la decisión de S-FX fase 2). Por eso los efectos globales van en Master.
+- `AudioEffectCapture` devuelve 0 frames en esta máquina, en cualquier bus: no sirve como sonda de audio.
 
 (El aviso de fuga de audio al cerrar es un artefacto de Godot, ver `AGENTS.md`.)
 

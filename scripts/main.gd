@@ -47,7 +47,7 @@ func _ready() -> void:
 	add_child(_voice_pool)
 	_sequencer.step_entered.connect(_voice_pool.play_step)
 
-	# Después del voice_pool: crea el bus común "fx" y manda ahí las cuatro capas.
+	# Antes del saver: el delay y el trémolo van sobre el bus Master, así el WAV los graba.
 	_global_fx = GlobalFx.new()
 	_global_fx.state = _state
 	add_child(_global_fx)

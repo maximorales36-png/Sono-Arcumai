@@ -207,9 +207,9 @@ const SAVE_NAME_ATTEMPTS := 20
 
 # --- Efectos globales de la vista general (S-FX) ---
 
-# Bus común: las cuatro capas pasan por acá antes de Master. El delay y el trémolo viven acá,
-# así afectan a todo y el WAV los graba.
-const FX_BUS_NAME := "fx"
+# Los efectos globales viven en el bus Master: la señal de las cuatro capas ya está mezclada ahí,
+# así afectan a todo y el WAV los graba. (Un bus propio no sirve: el envío de capa a "fx" cambiado
+# después de crear los buses no llega al audio en este Godot. Ver docs/ESTADO.md.)
 const MASTER_BUS_NAME := "Master"
 
 # Cada efecto tiene wet (0 a 1, reposo 0) y speed (-1 lento, 0 centro, +1 rápido, reposo 0).

@@ -1,14 +1,15 @@
-# Efectos que afectan a las cuatro capas juntas: un delay y un trémolo sobre un bus común.
-# Crea el bus "fx", manda ahí los buses de capa y lleva al audio el wet y el speed de State.live_fx
-# (tiempo del delay y velocidad del trémolo). La lógica de gestos vive en fx_drive.gd.
-# Depende de config.gd y de state.gd; main.gd le asigna el State y lo agrega después del voice_pool,
-# porque los buses de capa ya tienen que existir.
+# Efectos que afectan a las cuatro capas juntas: un delay y un trémolo sobre el bus Master.
+# No usa un bus propio porque en este Godot un envío cambiado después de crear los buses de capa
+# no llega al audio (medido en S-FX fase 2: los picos quedaban en Master, saltando el bus "fx").
+# Lleva al audio el wet y el speed de State.live_fx; la lógica de gestos vive en fx_drive.gd.
+# Depende de config.gd y de state.gd. main.gd lo agrega antes del saver, así el AudioEffectRecord
+# de Master graba ya con los efectos.
 class_name GlobalFx
 extends Node
 
 var state: State
 
-var _fx_index: int
+var _master_index: int
 var _delay: AudioEffectDelay
 var _amplify: AudioEffectAmplify
 # Fase del LFO del trémolo. Se acumula para que no salte cuando cambia la velocidad.
@@ -17,30 +18,9 @@ var _lfo_phase: float = 0.0
 
 func _ready() -> void:
 	assert(state != null, "[global_fx] falta el State: main.gd tiene que asignarlo antes de agregar el nodo")
-	_create_bus()
+	_master_index = AudioServer.get_bus_index(Config.MASTER_BUS_NAME)
+	assert(_master_index >= 0, "[global_fx] no existe el bus %s" % Config.MASTER_BUS_NAME)
 	_create_effects()
-
-
-# Cada capa deja de ir directo a Master y pasa por "fx".
-func _create_bus() -> void:
-	assert(
-		AudioServer.get_bus_index(Config.FX_BUS_NAME) == -1,
-		"[global_fx] ya existe el bus %s: no se agrega dos veces" % Config.FX_BUS_NAME
-	)
-	_fx_index = AudioServer.bus_count
-	AudioServer.add_bus(_fx_index)
-	AudioServer.set_bus_name(_fx_index, Config.FX_BUS_NAME)
-	# Explícito: un bus nuevo no queda enviando a Master solo.
-	AudioServer.set_bus_send(_fx_index, Config.MASTER_BUS_NAME)
-
-	for layer: int in Config.LAYER_COUNT:
-		var bus_name := Config.BUS_NAME_PREFIX + str(layer + 1)
-		var bus_index := AudioServer.get_bus_index(bus_name)
-		assert(
-			bus_index >= 0,
-			"[global_fx] no existe el bus %s: global_fx tiene que ir después del voice_pool" % bus_name
-		)
-		AudioServer.set_bus_send(bus_index, Config.FX_BUS_NAME)
 
 
 func _create_effects() -> void:
@@ -50,10 +30,10 @@ func _create_effects() -> void:
 	_delay.feedback_active = true
 	_delay.feedback_lowpass = Config.DELAY_FEEDBACK_LOWPASS_HZ
 	_delay.feedback_level_db = linear_to_db(Config.DELAY_FEEDBACK)
-	AudioServer.add_bus_effect(_fx_index, _delay)
+	AudioServer.add_bus_effect(_master_index, _delay)
 
 	_amplify = AudioEffectAmplify.new()
-	AudioServer.add_bus_effect(_fx_index, _amplify)
+	AudioServer.add_bus_effect(_master_index, _amplify)
 
 	_apply(0.0)
 
