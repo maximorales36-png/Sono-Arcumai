@@ -16,14 +16,8 @@ var cursor_row: int = 0
 var saved_piece_name: String = ""
 var save_message_until_msec: int = 0
 
-# Efectos globales de la vista de todas las capas (S5b). `fx_mode` es lo que pide el joystick;
-# `delay_wet` y `tremolo_depth` son los valores que están sonando y se desvanecen solos.
-var fx_mode: int = Config.GLOBAL_FX_NONE
-var delay_time_seconds: float = Config.DELAY_TIME_DEFAULT_SECONDS
-var delay_feedback: float = Config.DELAY_FEEDBACK_DEFAULT
-var delay_wet: float = 0.0
-var tremolo_depth_setting: float = Config.TREMOLO_DEPTH_DEFAULT
-var tremolo_depth: float = 0.0
+# Efectos globales de la vista general (S-FX): estado del joystick en vivo.
+var live_fx: FxSet = FxSet.new()
 
 
 class Layer:
@@ -46,6 +40,30 @@ class Layer:
 		decay_seconds = Config.DECAY_DEFAULT_SECONDS
 
 
+# Un efecto global: wet (0 a 1) y speed (-1 lento, 0 centro, +1 rápido).
+class FxUnit:
+	extends RefCounted
+
+	var wet: float = 0.0
+	var speed: float = 0.0
+
+	func reset() -> void:
+		wet = 0.0
+		speed = 0.0
+
+
+# Los dos efectos globales juntos. En la fase 2 va a haber un set en vivo y otro grabado.
+class FxSet:
+	extends RefCounted
+
+	var delay: FxUnit = FxUnit.new()
+	var tremolo: FxUnit = FxUnit.new()
+
+	func reset() -> void:
+		delay.reset()
+		tremolo.reset()
+
+
 func _init() -> void:
 	for _layer_index: int in Config.LAYER_COUNT:
 		layers.append(Layer.new())
@@ -62,12 +80,7 @@ func reset_piece() -> void:
 	cursor_row = 0
 	saved_piece_name = ""
 	save_message_until_msec = 0
-	fx_mode = Config.GLOBAL_FX_NONE
-	delay_time_seconds = Config.DELAY_TIME_DEFAULT_SECONDS
-	delay_feedback = Config.DELAY_FEEDBACK_DEFAULT
-	delay_wet = 0.0
-	tremolo_depth_setting = Config.TREMOLO_DEPTH_DEFAULT
-	tremolo_depth = 0.0
+	live_fx.reset()
 
 
 func get_active_layer() -> Layer:

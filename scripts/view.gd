@@ -32,7 +32,7 @@ func _draw() -> void:
 	_draw_notes(grid_rect, cell_size)
 	_draw_cursor(grid_rect, cell_size)
 	_draw_parameter_pad()
-	_draw_global_fx_pad()
+	_draw_fx_panels()
 	_draw_save_message()
 
 
@@ -165,25 +165,50 @@ func _draw_parameter_pad() -> void:
 	_draw_pad(horizontal, vertical, Config.LAYER_COLORS[state.active_layer_index])
 
 
-# Vista de todas las capas: el mismo cuadrado muestra el efecto global mientras se escucha.
-# Delay: X = tiempo, Y = feedback. Tremolo: Y = profundidad.
-func _draw_global_fx_pad() -> void:
+# Vista general: dos paneles abajo a la derecha, delay arriba y trémolo abajo.
+# Solo leen el estado en vivo: no hay efectos por capa.
+func _draw_fx_panels() -> void:
 	if not state.show_all_layers:
 		return
-	if state.delay_wet > 0.0:
-		_draw_pad(
-			_log_ratio(
-				state.delay_time_seconds, Config.DELAY_TIME_MIN_SECONDS, Config.DELAY_TIME_MAX_SECONDS
-			),
-			_ratio(state.delay_feedback, Config.DELAY_FEEDBACK_DEFAULT, Config.DELAY_FEEDBACK_MAX),
-			Config.GLOBAL_FX_DELAY_COLOR
-		)
-	elif state.tremolo_depth > 0.0:
-		_draw_pad(
-			Config.GLOBAL_FX_TREMOLO_PAD_HORIZONTAL,
-			_ratio(state.tremolo_depth, 0.0, Config.TREMOLO_DEPTH_MAX),
-			Config.GLOBAL_FX_TREMOLO_COLOR
-		)
+	_draw_fx_panel(_fx_panel_rect(1), state.live_fx.delay, Config.FX_DELAY_COLOR)
+	_draw_fx_panel(_fx_panel_rect(0), state.live_fx.tremolo, Config.FX_TREMOLO_COLOR)
+
+
+# Índice 0 = panel de abajo (trémolo), 1 = panel de arriba (delay).
+func _fx_panel_rect(index: int) -> Rect2:
+	var panel_size := Vector2(Config.FX_PANEL_WIDTH, Config.FX_PANEL_HEIGHT)
+	var view_size := get_viewport_rect().size
+	var panel_x := view_size.x - Config.FX_PANEL_MARGIN - panel_size.x
+	var panel_y := (
+		view_size.y
+		- Config.FX_PANEL_MARGIN
+		- panel_size.y * float(index + 1)
+		- Config.FX_PANEL_GAP * float(index)
+	)
+	return Rect2(Vector2(panel_x, panel_y), panel_size)
+
+
+# Barra de wet de izquierda a derecha y marcador de speed: izquierda = lento, centro = 0, derecha = rápido.
+func _draw_fx_panel(panel_rect: Rect2, unit: State.FxUnit, color: Color) -> void:
+	draw_rect(panel_rect, Config.PARAMETER_TRACK_COLOR)
+
+	var wet_color := color
+	wet_color.a *= Config.FX_WET_BAR_ALPHA
+	var wet_width := panel_rect.size.x * clampf(unit.wet, 0.0, 1.0)
+	draw_rect(Rect2(panel_rect.position, Vector2(wet_width, panel_rect.size.y)), wet_color)
+
+	var marker_half := Config.FX_SPEED_MARKER_WIDTH * 0.5
+	var marker_x := lerpf(
+		panel_rect.position.x + marker_half,
+		panel_rect.end.x - marker_half,
+		clampf((unit.speed + 1.0) * 0.5, 0.0, 1.0)
+	)
+	draw_line(
+		Vector2(marker_x, panel_rect.position.y),
+		Vector2(marker_x, panel_rect.end.y),
+		color,
+		Config.FX_SPEED_MARKER_WIDTH
+	)
 
 
 func _draw_pad(horizontal: float, vertical: float, dot_color: Color) -> void:

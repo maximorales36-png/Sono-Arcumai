@@ -1,7 +1,7 @@
 # Lee las acciones del InputMap, mueve el cursor (con repetición al mantener), asienta o borra notas,
 # cambia de capa y, con B3 o B4 apretados, mueve el timbre o la envolvente de la capa activa. En la
-# vista de todas las capas el joystick maneja los efectos globales.
-# Depende de config.gd y de state.gd: main.gd le asigna el State antes de agregarlo.
+# vista general (todas las capas) el joystick maneja los efectos globales a través de FxDrive.
+# Depende de config.gd, state.gd y fx_drive.gd: main.gd le asigna el State y el FxDrive antes de agregarlo.
 class_name Controller
 extends Node
 
@@ -12,6 +12,7 @@ signal quit_requested
 signal inactivity_reset
 
 var state: State
+var fx_drive: FxDrive
 
 # Próximo instante (ms) en que cada dirección vuelve a repetir.
 var _repeat_at_msec: Dictionary[StringName, int] = {}
@@ -27,6 +28,7 @@ var _last_input_msec: int = 0
 
 func _ready() -> void:
 	assert(state != null, "[controller] falta el State: main.gd tiene que asignarlo antes de agregar el nodo")
+	assert(fx_drive != null, "[controller] falta el FxDrive: main.gd tiene que asignarlo antes de agregar el nodo")
 	_last_input_msec = Time.get_ticks_msec()
 
 
@@ -34,7 +36,7 @@ func _input(_event: InputEvent) -> void:
 	_last_input_msec = Time.get_ticks_msec()
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	var now_msec := Time.get_ticks_msec()
 	if Input.is_anything_pressed():
 		_last_input_msec = now_msec
@@ -42,19 +44,26 @@ func _process(_delta: float) -> void:
 
 	# Los combos mandan sobre el resto: mientras uno está en curso, nada más responde.
 	if _update_combos(now_msec):
+		fx_drive.update(false, false, false, false, delta)
 		return
 
 	_update_plane()
 
-	# En la vista de todas las capas el joystick maneja los efectos globales y B2 sale.
+	# Vista general: el joystick maneja los efectos globales, B1 y B3/B4 no hacen nada y B2 sale.
 	if state.show_all_layers:
-		_handle_global_fx(now_msec)
+		fx_drive.update(
+			Input.is_action_pressed(Config.ACTION_MOVE_UP),
+			Input.is_action_pressed(Config.ACTION_MOVE_DOWN),
+			Input.is_action_pressed(Config.ACTION_MOVE_LEFT),
+			Input.is_action_pressed(Config.ACTION_MOVE_RIGHT),
+			delta
+		)
 		if Input.is_action_just_pressed(Config.ACTION_BTN2):
 			_select_next_layer()
 		return
 
-	# Fuera de esa vista no hay efectos globales: el State pide que se apaguen.
-	state.fx_mode = Config.GLOBAL_FX_NONE
+	# Fuera de la vista general no hay efectos en vivo: lo que suene, vuelve al reposo.
+	fx_drive.update(false, false, false, false, delta)
 
 	# Con B3 o B4 apretados, el joystick mueve parámetros y el cursor no se mueve.
 	if state.active_plane == Config.PARAMETER_PLANE_TIMBRE:
@@ -74,45 +83,6 @@ func _process(_delta: float) -> void:
 
 	if Input.is_action_just_pressed(Config.ACTION_BTN2):
 		_select_next_layer()
-
-
-# Vista de todas las capas: arriba enciende el delay y le suma feedback en cada repetición;
-# abajo enciende el tremolo y le suma profundidad. Izquierda/derecha, solo con arriba apretado,
-# alargan o acortan el tiempo del delay.
-func _handle_global_fx(now_msec: int) -> void:
-	if Input.is_action_pressed(Config.ACTION_MOVE_UP):
-		state.fx_mode = Config.GLOBAL_FX_DELAY
-		if _repeat_now(Config.ACTION_MOVE_UP, now_msec):
-			state.delay_feedback = clampf(
-				state.delay_feedback + Config.DELAY_FEEDBACK_STEP,
-				Config.DELAY_FEEDBACK_DEFAULT,
-				Config.DELAY_FEEDBACK_MAX
-			)
-		if _repeat_now(Config.ACTION_MOVE_LEFT, now_msec):
-			state.delay_time_seconds = clampf(
-				state.delay_time_seconds * Config.DELAY_TIME_STEP_RATIO,
-				Config.DELAY_TIME_MIN_SECONDS,
-				Config.DELAY_TIME_MAX_SECONDS
-			)
-		if _repeat_now(Config.ACTION_MOVE_RIGHT, now_msec):
-			state.delay_time_seconds = clampf(
-				state.delay_time_seconds / Config.DELAY_TIME_STEP_RATIO,
-				Config.DELAY_TIME_MIN_SECONDS,
-				Config.DELAY_TIME_MAX_SECONDS
-			)
-		return
-
-	if Input.is_action_pressed(Config.ACTION_MOVE_DOWN):
-		state.fx_mode = Config.GLOBAL_FX_TREMOLO
-		if _repeat_now(Config.ACTION_MOVE_DOWN, now_msec):
-			state.tremolo_depth_setting = clampf(
-				state.tremolo_depth_setting + Config.TREMOLO_DEPTH_STEP,
-				Config.TREMOLO_DEPTH_DEFAULT,
-				Config.TREMOLO_DEPTH_MAX
-			)
-		return
-
-	state.fx_mode = Config.GLOBAL_FX_NONE
 
 
 func _update_plane() -> void:

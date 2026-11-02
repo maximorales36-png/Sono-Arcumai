@@ -202,50 +202,43 @@ const SAVE_MESSAGE_COLOR := Color(0.85, 0.85, 0.90)
 # Intentos para encontrar un nombre de pieza que no exista ya en la carpeta.
 const SAVE_NAME_ATTEMPTS := 20
 
-# --- Efectos globales de la vista de todas las capas (S5b) ---
+# --- Efectos globales de la vista general (S-FX) ---
 
-# Bus común: las cuatro capas pasan por acá antes de Master. El delay y el tremolo viven acá,
-# así afectan a todo y quedan grabados en el WAV.
+# Bus común: las cuatro capas pasan por acá antes de Master. El delay y el trémolo viven acá,
+# así afectan a todo y el WAV los graba.
 const FX_BUS_NAME := "fx"
 const MASTER_BUS_NAME := "Master"
 
-# Delay: wet fijo en 40 % mientras está encendido. Al apagarse, el dry vuelve a 1.0
-# para que el instrumento no quede más bajo.
-const DELAY_WET := 0.4
+# Cada efecto tiene wet (0 a 1, reposo 0) y speed (-1 lento, 0 centro, +1 rápido, reposo 0).
+# Con la dirección vertical mantenida el wet sube en este tiempo; al soltarla, todo vuelve al reposo.
+const FX_WET_RISE_SECONDS := 3.0
+const FX_SPEED_TO_EXTREME_SECONDS := 2.0
+const FX_REST_SECONDS := 3.0
+# Salto inicial del wet al empezar a mantener, para que el efecto se oiga enseguida.
+const FX_WET_START_JUMP := 0.15
 
-const DELAY_TIME_MIN_SECONDS := 0.08
-const DELAY_TIME_MAX_SECONDS := 0.8
-const DELAY_TIME_DEFAULT_SECONDS := 0.3
-# El tiempo se mueve en proporción, como el cutoff.
-const DELAY_TIME_STEP_RATIO := 1.15
-
-const DELAY_FEEDBACK_DEFAULT := 0.2
-const DELAY_FEEDBACK_STEP := 0.05
-const DELAY_FEEDBACK_MAX := 0.75
-# Los ecos se van oscureciendo.
+# Delay: el tiempo se interpola en forma geométrica entre los tres puntos.
+const DELAY_TIME_SLOW_MS := 900.0
+const DELAY_TIME_CENTER_MS := 400.0
+const DELAY_TIME_FAST_MS := 120.0
+# Feedback fijo, como porcentaje de la señal que vuelve.
+const DELAY_FEEDBACK := 0.4
 const DELAY_FEEDBACK_LOWPASS_HZ := 4000.0
 
-# Tremolo: LFO de amplitud sobre el bus común. La velocidad es fija.
-const TREMOLO_RATE_HZ := 4.0
-const TREMOLO_DEPTH_DEFAULT := 0.2
-const TREMOLO_DEPTH_STEP := 0.05
-const TREMOLO_DEPTH_MAX := 0.8
-
-# Qué efecto global pide el joystick ahora mismo (State.fx_mode).
-const GLOBAL_FX_NONE := 0
-const GLOBAL_FX_DELAY := 1
-const GLOBAL_FX_TREMOLO := 2
-
-# Al soltar el joystick los efectos se desvanecen; al agarrarlo, entran rápido.
-const GLOBAL_FX_FADE_OUT_SECONDS := 1.5
-const GLOBAL_FX_FADE_IN_SECONDS := 0.2
+# Trémolo: velocidad del LFO en Hz, también geométrica. El wet es la profundidad.
+const TREMOLO_RATE_SLOW_HZ := 0.5
+const TREMOLO_RATE_CENTER_HZ := 3.0
+const TREMOLO_RATE_FAST_HZ := 12.0
 
 # Ganancia lineal que se usa como silencio al pasar niveles a dB.
 const SILENT_GAIN := 0.0001
 
-# Colores del indicador de los efectos globales (no son los de ninguna capa).
-const GLOBAL_FX_DELAY_COLOR := Color(0.90, 0.90, 0.95)
-const GLOBAL_FX_TREMOLO_COLOR := Color(0.95, 0.70, 0.30)
-
-# El tremolo no tiene control horizontal: el punto va centrado.
-const GLOBAL_FX_TREMOLO_PAD_HORIZONTAL := 0.5
+# Indicadores de la vista general: un panel por efecto, con barra de wet y marcador de speed.
+const FX_PANEL_WIDTH := 150.0
+const FX_PANEL_HEIGHT := 34.0
+const FX_PANEL_GAP := 10.0
+const FX_PANEL_MARGIN := 32.0
+const FX_SPEED_MARKER_WIDTH := 3.0
+const FX_WET_BAR_ALPHA := 0.55
+const FX_DELAY_COLOR := Color(0.90, 0.90, 0.95)
+const FX_TREMOLO_COLOR := Color(0.95, 0.70, 0.30)

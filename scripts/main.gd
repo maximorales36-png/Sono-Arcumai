@@ -4,6 +4,7 @@
 extends Node2D
 
 var _state: State
+var _fx_drive: FxDrive
 var _sequencer: Sequencer
 var _voice_pool: VoicePool
 var _global_fx: GlobalFx
@@ -23,6 +24,10 @@ func _ready() -> void:
 
 	_state = State.new()
 
+	# Lógica de los efectos en vivo. En la fase 2 va a haber una segunda instancia, para el gesto grabado.
+	_fx_drive = FxDrive.new()
+	_fx_drive.fx = _state.live_fx
+
 	_sequencer = Sequencer.new()
 	add_child(_sequencer)
 
@@ -38,6 +43,7 @@ func _ready() -> void:
 
 	_controller = Controller.new()
 	_controller.state = _state
+	_controller.fx_drive = _fx_drive
 	add_child(_controller)
 	_controller.layer_changed.connect(_voice_pool.play_cursor_preview)
 	# Primero el bus, después la nota: la vista previa suena ya con el parámetro nuevo.
