@@ -224,9 +224,17 @@ const FX_WET_START_JUMP := 0.15
 const DELAY_TIME_SLOW_MS := 900.0
 const DELAY_TIME_CENTER_MS := 400.0
 const DELAY_TIME_FAST_MS := 120.0
-# Feedback fijo, como porcentaje de la señal que vuelve.
+# Feedback del delay, como porcentaje de la señal que vuelve, escalado por el wet: en reposo no
+# queda ninguna cola sonando (el feedback de Godot suma su propio tap, aparte del nivel del delay).
 const DELAY_FEEDBACK := 0.4
 const DELAY_FEEDBACK_LOWPASS_HZ := 4000.0
+
+# El tiempo del delay no se puede mover en marcha: AudioEffectDelay lee el buffer sin interpolar y
+# cada salto del tiempo suena como un click. Se cambia solo cuando el speed se quedó quieto, y con
+# el tap apagado un instante (pasa solo la señal seca) para que el salto no se escuche.
+const DELAY_TIME_SETTLE_SECONDS := 0.15
+const DELAY_TIME_DUCK_SECONDS := 0.05
+const DELAY_TIME_FADE_SECONDS := 0.015
 
 # Trémolo: velocidad del LFO en Hz, también geométrica. El wet es la profundidad.
 const TREMOLO_RATE_SLOW_HZ := 0.5

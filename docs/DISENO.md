@@ -127,7 +127,9 @@ Reglas: un efecto está activo mientras se mantiene su dirección vertical y los
 wet y speed vuelven lentamente al reposo. Si se suelta la parte horizontal pero se sigue manteniendo la vertical,
 el speed se queda donde está. Al empezar a mantener, el wet da un salto inicial chico (~0.15) para que se oiga
 enseguida. Valores en `config.gd`: wet 0 a 1 en 3 s, speed de centro a extremo en 2 s, vuelta al reposo en 3 s.
-Delay: −1 = 900 ms, 0 = 400 ms, +1 = 120 ms (interpolación geométrica), feedback fijo ~40 %. Trémolo:
+Delay: −1 = 900 ms, 0 = 400 ms, +1 = 120 ms (interpolación geométrica), feedback ~40 % del wet (en reposo
+no queda cola). El tiempo del delay se aplica cuando la palanca deja de moverse hacia los costados, no mientras
+se mueve: cambiarlo en marcha salta la lectura del buffer y suena como un click. Trémolo:
 −1 = 0.5 Hz, 0 = 3 Hz, +1 = 12 Hz.
 
 **Fase 1 (implementada):** efectos en vivo con el joystick, tal como describe la tabla.

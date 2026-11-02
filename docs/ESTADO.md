@@ -88,7 +88,7 @@ Mantenerlo corto: reemplazar lo viejo, no acumular.
   gesto (`duration` y `events`; `{}` si no hay).
 - `scripts/global_fx.gd`: pone el delay y el trémolo sobre el bus Master (donde ya está la mezcla de las cuatro
   capas; no hay bus `fx`, ver la decisión de S-FX fase 2 sobre el ruteo). Cada frame lleva `state.live_fx` al audio:
-  el delay (`AudioEffectDelay`, tiempo geométrico 900/400/120 ms según speed, feedback fijo 0.4, dry = 1 − wet) y el
+  el delay (`AudioEffectDelay`, tiempo geométrico 900/400/120 ms según speed, feedback 0.4 × wet, dry = 1 − wet) y el
   trémolo (`AudioEffectAmplify` con LFO de amplitud, velocidad geométrica 0.5/3/12 Hz, profundidad = wet). La fase
   del LFO se acumula con `delta` para que no salte al cambiar la velocidad. main.gd lo agrega antes del saver, así el
   `AudioEffectRecord` de Master queda después en la cadena y graba los efectos.
@@ -146,6 +146,11 @@ Mantenerlo corto: reemplazar lo viejo, no acumular.
   oscila entre -4 y -54 dB, 3 ciclos por segundo; con delay a fondo (dry 0.00, tap 400 ms), 1.7 s después de cortar
   todas las voces el RMS sigue entre -11 y -26 dB (cola de ecos). `AudioEffectCapture` no sirve como sonda en esta
   máquina: devuelve 0 frames en cualquier bus.
+- Corregido en S-FX fase 2 (reposo y clicks del delay): con wet 0 y dry 1 el feedback daba -8 dB y dejaba cola
+  (RMS -6 a -16 dB después de cortar las voces); ahora el feedback es 0.4 × wet y en reposo el tap y el feedback
+  quedan en -80 dB, con la cola en -84 → -120 dB. Moviendo la palanca a la derecha con el delay a wet 1.00: el
+  tiempo se queda en 250 ms mientras el speed sube 0.10 → 0.50 (antes cambiaba en cada frame); al soltar el costado,
+  el tap baja a -14 dB, el tiempo pasa a 219 ms y el tap vuelve a 0 dB en ~150 ms.
 
 ### Medición de tiempo (S2)
 
@@ -217,9 +222,16 @@ de lo esperado por período.
   nuevo justificado: la fase 2 usa dos instancias de la misma lógica (joystick vivo y gesto grabado).
   `global_fx.gd` quedó solo como lado de audio y lee `state.live_fx`.
 - S-FX: el delay se apaga bajando el wet a 0 y subiendo el dry a 1 − wet al mismo tiempo, así el instrumento no queda
-  más bajo al desaparecer el efecto.
+  más bajo al desaparecer el efecto. El feedback de `AudioEffectDelay` se suma al audio como un tap propio, aparte
+  del nivel del delay: si no se escala con el wet, en reposo siguen sonando ecos a -8 dB. Por eso va como
+  0.4 × wet.
+- S-FX: el tiempo del delay no se cambia mientras el speed se mueve. `AudioEffectDelay` lee el buffer sin
+  interpolar (`int` del tiempo en frames), así que cada cambio salta la lectura y suena como un click; mover el
+  tiempo en vivo daba un chisporroteo. Se aplica cuando el speed lleva `DELAY_TIME_SETTLE_SECONDS` quieto, con el
+  tap apagado `DELAY_TIME_DUCK_SECONDS` (por el dry, con `DELAY_TIME_FADE_SECONDS` de rampa) y después vuelve a
+  entrar. Mientras se mueve la palanca a los costados se sigue oyendo el tiempo anterior.
 - S-FX: el tiempo del delay y la velocidad del trémolo se interpolan en forma geométrica entre los tres puntos
-  (−1 / 0 / +1), porque el oído los escucha en proporción. El feedback del delay es fijo en 0.4.
+  (−1 / 0 / +1), porque el oído los escucha en proporción. El feedback del delay es 0.4 × wet: en reposo no queda cola.
 - S-FX: el trémolo no existe como efecto en Godot: es una LFO de amplitud sobre un `AudioEffectAmplify` en el bus
   Master, calculada en `_process` a la frecuencia de frames. La fase se acumula con `delta` (no se recalcula desde el
   reloj) para que no salte al cambiar la velocidad; el costo es que a 12 Hz y 60 fps hay ~5 muestras por ciclo.
@@ -316,8 +328,9 @@ No se resolvieron en silencio; quedan para que decida Maxi:
   y 2 s de borrado son cómodos.
 - Escuchar el trémolo a velocidades altas (12 Hz): la LFO se calcula en `_process` a 60 fps y puede sonar escalonada.
   No se va a resolver con complejidad; si molesta, lo más simple es bajar `TREMOLO_RATE_FAST_HZ` o limitar el rango.
-- Escuchar si cambiar el tiempo del delay en vivo (sobre todo con wet alto) hace clicks o glissandos. La rampa del
-  wet debería taparlos; si no, reportarlo.
+- Escuchar si cambiar el tiempo del delay en vivo hace clicks o glissandos. Ya no se cambia mientras la palanca se
+  mueve hacia los costados (se aplica al soltarla, con el tap apagado un instante), pero falta confirmarlo de oído.
+  Definir si el hueco de `DELAY_TIME_DUCK_SECONDS` (50 ms) al cambiar el tiempo se nota demasiado.
 - Definir si el feedback fijo en 0.4 y el rango 120–900 ms del delay quedan cómodos, y si el wet llegando a 1.0
   (dry 0) deja el instrumento muy flaco cuando el delay está al máximo.
 - Definir si el rango del trémolo (0.5–12 Hz) y que la profundidad llegue a 1.0 (silencio en el mínimo del LFO)
